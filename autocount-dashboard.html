@@ -37,6 +37,19 @@
       --color-border-tertiary:      var(--teal-border);
     }
 
+    body.theme-warmsand {
+      --teal-dark: #e3d4be; --teal-mid: #dcc9b0;
+      --teal-card: #f5efe4; --teal-border: #c9bca9;
+      --text: #1a1512; --text-base: #2a2520; --text-muted: #6b6055; --text-dim: #9a8e82;
+      --bg: #ebdecb;
+      --header-bg: linear-gradient(135deg,#ebdecb 0%,#e3d4be 50%,#dcc9b0 100%);
+      --inset: #e0d3c0; --surface: #f5efe4;
+      --accent-bright: #1a6a6f; --accent-soft: #218288;
+    }
+    body[data-mode="light"] .modal-overlay { background: rgba(0,0,0,0.35); }
+    body[data-mode="light"] .modal-close { background: rgba(0,0,0,0.06); }
+    body[data-mode="light"] .modal-close:hover { background: rgba(0,0,0,0.1); color: var(--text); }
+
     /* ── Header ── */
     .header {
       background: var(--header-bg);
@@ -202,10 +215,11 @@
     /* Calendar dropdown */
     .cal-dropdown {
       position: absolute; top: calc(100% + 8px); left: 0; z-index: 500;
-      background: #0A2829; border: 1px solid var(--teal-border);
+      background: var(--teal-dark); border: 1px solid var(--teal-border);
       border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,0.7);
       padding: 0; min-width: 580px; overflow: hidden;
     }
+    body[data-mode="light"] .cal-dropdown { box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
     .cal-top { display: flex; align-items: center; padding: 14px 20px 10px; border-bottom: 1px solid var(--teal-border); gap: 8px; }
     .cal-top-label { font-size: 12px; color: var(--text-muted); flex: 1; }
     .cal-top-range { font-size: 13px; font-weight: 500; color: var(--text); flex: 1; text-align: center; }
@@ -301,6 +315,15 @@
   </style>
 </head>
 <body>
+<script>
+(function(){
+  var saved=localStorage.getItem('idyn-theme')||'tealnight';
+  if(saved==='warmsand'){
+    document.body.classList.add('theme-warmsand');
+    document.body.dataset.mode='light';
+  }
+})();
+</script>
 
 <!-- ── Header ── -->
 <div class="header">
@@ -320,6 +343,7 @@
     <div class="header-actions">
       <a href="idynamics-dashboard.html" class="btn">← Command Centre</a>
       <div class="live-badge"><div class="live-dot"></div> LIVE</div>
+      <button class="btn" id="themeBtn" onclick="toggleTheme()" title="Switch theme" style="padding:6px 10px;font-size:13px">☀</button>
     </div>
   </div>
 </div>
@@ -1353,6 +1377,26 @@ function closeDrill() {
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrill(); });
 
+function toggleTheme() {
+  var cur = localStorage.getItem('idyn-theme') || 'tealnight';
+  var next = cur === 'tealnight' ? 'warmsand' : 'tealnight';
+  document.body.classList.toggle('theme-warmsand', next === 'warmsand');
+  document.body.dataset.mode = next === 'warmsand' ? 'light' : 'dark';
+  localStorage.setItem('idyn-theme', next);
+  var btn = document.getElementById('themeBtn');
+  if (btn) btn.textContent = next === 'warmsand' ? '☽' : '☀';
+}
+(function(){
+  var saved = localStorage.getItem('idyn-theme') || 'tealnight';
+  if (saved === 'warmsand') {
+    document.body.classList.add('theme-warmsand');
+    document.body.dataset.mode = 'light';
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    var btn = document.getElementById('themeBtn');
+    if (btn) btn.textContent = (localStorage.getItem('idyn-theme')||'tealnight') === 'warmsand' ? '☽' : '☀';
+  });
+})();
 </script>
 </body>
 </html>
