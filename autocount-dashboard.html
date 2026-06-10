@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AutoCount BD Intelligence Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text-base);
+      min-height: 100vh;
+      transition: background-color 0.3s ease;
+    }
+    :root {
+      --orange:        #FF6634;
+      --orange-light:  #FF855D;
+      --teal:          #218288;
+      --teal-dark:     #0A2829;
+      --teal-mid:      #0D3233;
+      --teal-card:     #0F3A3B;
+      --teal-border:   #1A4A4B;
+      --text:          #ebdecb;
+      --text-base:     #e0d3c0;
+      --text-muted:    #8a9e8f;
+      --text-dim:      #4A6E72;
+      --bg:            #071E1F;
+      --header-bg:     linear-gradient(135deg, #071E1F 0%, #0A2829 50%, #0D3233 100%);
+      --inset:         #091F20;
+      --surface:       #0D3233;
+      --accent-bright: #4DB8BD;
+      --accent-soft:   #218288;
+      /* mapped aliases for embedded components */
+      --color-background-secondary: var(--surface);
+      --color-text-secondary:       var(--text-muted);
+      --color-border-tertiary:      var(--teal-border);
+    }
+
+    /* ── Header ── */
+    .header {
+      background: var(--header-bg);
+      border-bottom: 1px solid var(--teal-border);
+      padding: 0 28px;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .header-top {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 0 14px; gap: 16px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .logo-mark { width: 38px; height: 38px; flex-shrink: 0; }
+    .brand-text { display: flex; flex-direction: column; gap: 2px; }
+    .brand-name { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: var(--text-muted); text-transform: uppercase; }
+    .dash-title { font-size: 20px; font-weight: 700; color: var(--text); line-height: 1.1; }
+    .dash-subtitle { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px; border-radius: 20px; font-size: 12px; font-weight: 500;
+      cursor: pointer; border: 1px solid var(--teal-border);
+      background: transparent; color: var(--text-muted); transition: all 0.15s;
+      white-space: nowrap; text-decoration: none;
+    }
+    .btn:hover { border-color: var(--teal); color: var(--text); }
+    .btn-primary { background: var(--orange); border-color: var(--orange); color: #fff; }
+    .btn-primary:hover { background: var(--orange-light); border-color: var(--orange-light); color: #fff; }
+    .live-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+      border: 1px solid var(--teal-border); background: rgba(33,130,136,0.12); color: var(--accent-bright);
+    }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #22C55E; box-shadow: 0 0 6px #22C55E; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ── Breadcrumb ── */
+    .breadcrumb {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 28px; background: var(--inset);
+      border-bottom: 1px solid var(--teal-border);
+      font-size: 12px; color: var(--text-muted);
+    }
+    .breadcrumb a { color: var(--accent-bright); text-decoration: none; }
+    .breadcrumb a:hover { color: var(--text); }
+    .bc-sep { color: var(--text-dim); }
+
+    /* ── Sub-tabs ── */
+    .subtab-bar {
+      display: flex; gap: 4px; padding: 16px 28px 0;
+    }
+    .subtab {
+      padding: 8px 16px; border-radius: 8px 8px 0 0; font-size: 13px; font-weight: 500;
+      cursor: pointer; color: var(--text-muted); border: 1px solid transparent;
+      border-bottom: none; transition: all 0.15s; background: transparent;
+    }
+    .subtab:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+    .subtab.active {
+      color: var(--text); background: var(--teal-card);
+      border-color: var(--teal-border);
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Main content ── */
+    .main {
+      max-width: 1200px; margin: 0 auto;
+      padding: 0 28px 48px;
+    }
+    .content-card {
+      background: var(--teal-card);
+      border: 1px solid var(--teal-border);
+      border-radius: 12px; padding: 24px;
+      margin-top: 20px;
+    }
+    .section-heading {
+      margin-bottom: 20px;
+    }
+    .section-heading h2 { font-size: 16px; font-weight: 600; color: var(--text); }
+    .section-heading p { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+    /* ── Summary stat cards ── */
+    .stat-row {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px; margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--teal-border);
+      border-radius: 10px; padding: 14px 16px;
+      transition: box-shadow 0.15s;
+    }
+    .stat-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+    .stat-label { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .stat-value { font-size: 26px; font-weight: 600; color: var(--text); line-height: 1; }
+    .stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+    .stat-card.green-accent .stat-value { color: #4ade80; }
+    .stat-card.orange-accent .stat-value { color: var(--orange); }
+    .stat-card.teal-accent .stat-value { color: var(--accent-bright); }
+
+    /* ── Won-rate embedded component (remapped vars) ── */
+    .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+    .metric { background: var(--surface); border: 1px solid var(--teal-border); border-radius: 8px; padding: 12px; cursor: pointer; transition: border-color .15s, background .15s; }
+    .metric:hover { border-color: var(--accent-bright); background: rgba(77,184,189,.08); }
+    .metric-label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+    .metric-val { font-size: 22px; font-weight: 500; color: var(--text); }
+    /* ── Drill-down modal ── */
+    #drill-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:900; align-items:center; justify-content:center; }
+    #drill-overlay.open { display:flex; }
+    #drill-modal { background:var(--surface); border:1px solid var(--teal-border); border-radius:12px; width:min(520px,92vw); max-height:80vh; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 8px 40px rgba(0,0,0,.5); }
+    #drill-header { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid var(--teal-border); }
+    #drill-title { font-size:14px; font-weight:600; color:var(--text); }
+    #drill-close { background:none; border:none; color:var(--text-muted); font-size:20px; cursor:pointer; line-height:1; padding:0 4px; }
+    #drill-close:hover { color:var(--text); }
+    #drill-body { overflow-y:auto; padding:16px 20px; }
+    .drill-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .drill-table th { text-align:left; color:var(--text-muted); font-weight:500; font-size:11px; padding:6px 8px; border-bottom:1px solid var(--teal-border); text-transform:uppercase; letter-spacing:.04em; }
+    .drill-table td { padding:8px 8px; border-bottom:1px solid rgba(255,255,255,.04); vertical-align:middle; }
+    .drill-table tr:last-child td { border-bottom:none; }
+    .drill-empty { text-align:center; color:var(--text-muted); padding:24px 0; font-size:13px; }
+    .section-title {
+      font-size: 12px; font-weight: 500; color: var(--text-muted);
+      margin: 1.5rem 0 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 1.5rem; }
+    @media (max-width: 600px) { .chart-row { grid-template-columns: 1fr; } }
+    .chart-wrap { background: var(--surface); border: 1px solid var(--teal-border); border-radius: 10px; padding: 16px; }
+    .chart-wrap-title { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+    table.won-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table.won-table th { text-align: left; color: var(--text-muted); font-weight: 500; font-size: 12px; padding: 8px 8px 6px; border-bottom: 1px solid var(--teal-border); }
+    table.won-table td { padding: 8px; border-bottom: 1px solid rgba(26,74,75,0.5); vertical-align: middle; color: var(--text-base); }
+    table.won-table tr:last-child td { border-bottom: none; }
+    table.won-table tbody tr:hover td { background: rgba(33,130,136,0.06); }
+    .bar-bg { background: var(--teal-border); border-radius: 3px; height: 8px; width: 100%; }
+    .bar-fill { height: 8px; border-radius: 3px; }
+    .won-val { color: #4ade80; font-weight: 500; }
+    .zero-val { color: var(--text-muted); }
+    .donut-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; font-size: 12px; color: var(--text-muted); }
+    .donut-legend span { display: flex; align-items: center; gap: 5px; }
+    .swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+    /* ── Date range picker ── */
+    .dr-bar {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      margin-bottom: 20px; padding: 12px 16px;
+      background: var(--inset); border: 1px solid var(--teal-border); border-radius: 10px;
+      position: relative;
+    }
+    .dr-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; flex-shrink: 0; }
+    .dr-trigger {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 500;
+      cursor: pointer; border: 1px solid var(--teal-border);
+      background: var(--surface); color: var(--text); transition: all 0.15s;
+      user-select: none;
+    }
+    .dr-trigger:hover { border-color: var(--teal); }
+    .dr-trigger.open { border-color: var(--orange); box-shadow: 0 0 0 2px rgba(255,102,52,0.15); }
+    .dr-trigger svg { flex-shrink: 0; color: var(--text-muted); }
+    .dr-sep { color: var(--text-dim); font-size: 13px; }
+    .dr-active-info { margin-left: auto; font-size: 11px; color: var(--accent-bright); }
+
+    /* Calendar dropdown */
+    .cal-dropdown {
+      position: absolute; top: calc(100% + 8px); left: 0; z-index: 500;
+      background: #0A2829; border: 1px solid var(--teal-border);
+      border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+      padding: 0; min-width: 580px; overflow: hidden;
+    }
+    .cal-top { display: flex; align-items: center; padding: 14px 20px 10px; border-bottom: 1px solid var(--teal-border); gap: 8px; }
+    .cal-top-label { font-size: 12px; color: var(--text-muted); flex: 1; }
+    .cal-top-range { font-size: 13px; font-weight: 500; color: var(--text); flex: 1; text-align: center; }
+    .cal-nav { background: none; border: 1px solid var(--teal-border); border-radius: 6px; color: var(--text-muted); cursor: pointer; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.15s; flex-shrink: 0; }
+    .cal-nav:hover { border-color: var(--teal); color: var(--text); }
+    .cal-body { display: flex; gap: 0; }
+    .cal-month { flex: 1; padding: 16px 16px 10px; }
+    .cal-month + .cal-month { border-left: 1px solid var(--teal-border); }
+    .cal-month-title { font-size: 13px; font-weight: 600; color: var(--text); text-align: center; margin-bottom: 10px; }
+    .cal-dow { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; margin-bottom: 4px; }
+    .cal-dow span { font-size: 10px; color: var(--text-dim); text-align: center; padding: 3px 0; font-weight: 600; text-transform: uppercase; }
+    .cal-days { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; }
+    .cal-day {
+      font-size: 12px; text-align: center; padding: 6px 2px; border-radius: 6px;
+      cursor: pointer; color: var(--text-muted); transition: background 0.1s, color 0.1s;
+      user-select: none;
+    }
+    .cal-day:hover { background: rgba(33,130,136,0.2); color: var(--text); }
+    .cal-day.in-range { background: rgba(33,130,136,0.15); color: var(--text); border-radius: 0; }
+    .cal-day.range-start { background: var(--orange) !important; color: #fff !important; border-radius: 6px 0 0 6px; }
+    .cal-day.range-end   { background: var(--orange) !important; color: #fff !important; border-radius: 0 6px 6px 0; }
+    .cal-day.range-start.range-end { border-radius: 6px; }
+    .cal-day.today { font-weight: 700; color: var(--accent-bright); }
+    .cal-day.empty { cursor: default; }
+    .cal-day.empty:hover { background: none; }
+    .cal-foot { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-top: 1px solid var(--teal-border); gap: 8px; }
+    .cal-hint { font-size: 11px; color: var(--text-dim); }
+    .cal-foot-btns { display: flex; gap: 8px; }
+    .cal-btn { padding: 6px 16px; border-radius: 7px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+    .cal-btn-clear { background: none; border: 1px solid var(--teal-border); color: var(--text-muted); }
+    .cal-btn-clear:hover { border-color: var(--teal); color: var(--text); }
+    .cal-btn-apply { background: var(--orange); border: 1px solid var(--orange); color: #fff; }
+    .cal-btn-apply:hover { background: var(--orange-light); }
+    .cal-btn-apply:disabled { opacity: 0.4; cursor: default; }
+
+    .no-data-msg {
+      text-align: center; padding: 48px 0; color: var(--text-muted); font-size: 14px;
+    }
+    .no-data-msg span { display: block; font-size: 28px; margin-bottom: 10px; }
+
+    /* ── Comparison mode buttons ── */
+    .mode-divider { width: 1px; height: 26px; background: var(--teal-border); flex-shrink: 0; margin: 0 2px; }
+    .mode-btn {
+      padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 500;
+      cursor: pointer; border: 1px solid var(--teal-border);
+      background: transparent; color: var(--text-muted); transition: all 0.15s; white-space: nowrap;
+    }
+    .mode-btn:hover { border-color: var(--teal); color: var(--text); background: rgba(33,130,136,0.08); }
+    .mode-btn.active { background: var(--teal); border-color: var(--teal); color: #fff; }
+
+    /* ── Comparison views ── */
+    .compare-section { display: none; }
+    .compare-kpi-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+    .compare-kpi {
+      flex: 1; min-width: 140px; background: var(--surface);
+      border: 1px solid var(--teal-border); border-radius: 10px; padding: 14px 16px;
+    }
+    .compare-kpi.best { border-color: var(--orange); background: rgba(255,102,52,0.06); }
+    .compare-kpi.no-data { opacity: 0.45; }
+    .ck-period { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+    .ck-rate { font-size: 28px; font-weight: 700; color: var(--text); }
+    .ck-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+    .compare-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .compare-table th { text-align: left; color: var(--text-muted); font-weight: 500; font-size: 12px; padding: 8px 10px 6px; border-bottom: 1px solid var(--teal-border); }
+    .compare-table td { padding: 8px 10px; border-bottom: 1px solid rgba(26,74,75,0.5); vertical-align: middle; color: var(--text-base); }
+    .compare-table tr:last-child td { border-bottom: none; }
+    .compare-table tbody tr:hover td { background: rgba(33,130,136,0.06); }
+    .delta-up   { color: #4ade80; font-weight: 600; }
+    .delta-down { color: #f87171; font-weight: 600; }
+    .delta-flat { color: var(--text-muted); }
+    .best-badge { background: rgba(255,102,52,0.15); color: var(--orange); border-radius: 4px; padding: 2px 7px; font-size: 11px; font-weight: 600; }
+
+    /* ── Insight box ── */
+    .insight-box {
+      background: var(--surface);
+      border: 1px solid var(--teal-border);
+      border-left: 3px solid var(--orange);
+      border-radius: 10px; padding: 16px 18px;
+      font-size: 13px; color: var(--text-base); line-height: 1.6;
+      margin-top: 20px;
+    }
+    .insight-label { font-size: 11px; font-weight: 600; color: var(--orange); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+
+    /* ── Placeholder tabs ── */
+    .placeholder-panel {
+      background: var(--teal-card); border: 1px solid var(--teal-border);
+      border-radius: 12px; padding: 48px 28px; text-align: center;
+      margin-top: 20px;
+    }
+    .placeholder-panel .ph-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+    .placeholder-panel .ph-sub { font-size: 13px; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div class="header">
+  <div class="header-top">
+    <div class="brand">
+      <svg class="logo-mark" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="18" fill="#0F3A3B" stroke="#218288" stroke-width="1.5"/>
+        <path d="M12 20 L20 10 L28 20 L20 30 Z" fill="none" stroke="#FF6634" stroke-width="2" stroke-linejoin="round"/>
+        <circle cx="20" cy="20" r="3" fill="#FF6634"/>
+      </svg>
+      <div class="brand-text">
+        <div class="brand-name">iDynamics Software</div>
+        <div class="dash-title">AutoCount</div>
+        <div class="dash-subtitle">Product Dashboard · Malaysia · 2025–2026</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <a href="idynamics-dashboard.html" class="btn">← Command Centre</a>
+      <div class="live-badge"><div class="live-dot"></div> LIVE</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Breadcrumb ── -->
+<div class="breadcrumb">
+  <a href="idynamics-dashboard.html">Command Centre</a>
+  <span class="bc-sep">›</span>
+  <span>AutoCount</span>
+</div>
+
+<!-- ── Sub-tabs ── -->
+<div class="subtab-bar">
+  <div class="subtab active" onclick="switchTab(this,'tab-wonrate')">📊 Won Rate Analysis</div>
+  <div class="subtab" onclick="switchTab(this,'tab-pipeline')">🔁 Pipeline</div>
+  <div class="subtab" onclick="switchTab(this,'tab-accounts')">🏢 Accounts</div>
+</div>
+
+<!-- ══════════════════════════════════════
+     TAB: WON RATE ANALYSIS (2025)
+══════════════════════════════════════ -->
+<div id="tab-wonrate" class="tab-panel active">
+<div class="main">
+
+  <!-- ── Persistent control bar (always visible across all modes) ── -->
+  <div class="dr-bar" id="dr-bar">
+    <span class="dr-label">Period</span>
+    <div class="dr-trigger" id="dr-trigger" onclick="toggleCalendar()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span id="dr-start-label">1 Jan 2025</span>
+      <span class="dr-sep">—</span>
+      <span id="dr-end-label">31 Dec 2025</span>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="mode-divider"></div>
+    <button class="mode-btn" id="btn-qcompare" onclick="setMode('q-compare',this)">Q vs Q</button>
+    <button class="mode-btn" id="btn-hcompare" onclick="setMode('h-compare',this)">H1 vs H2</button>
+    <div class="mode-divider"></div>
+    <button class="mode-btn" id="btn-clear" onclick="clearAllFilters()" style="color:#f87171;border-color:rgba(248,113,113,0.3);" title="Clear all filters and reset to default">✕ Clear</button>
+    <span class="dr-active-info" id="period-active-label"></span>
+
+    <!-- Calendar dropdown -->
+    <div class="cal-dropdown" id="cal-dropdown" style="display:none">
+      <div class="cal-top">
+        <button class="cal-nav" onclick="calNav(-1,event)">‹</button>
+        <div class="cal-top-range" id="cal-range-display">Select start date</div>
+        <button class="cal-nav" onclick="calNav(1,event)">›</button>
+      </div>
+      <div class="cal-body" id="cal-body"></div>
+      <div class="cal-foot">
+        <span class="cal-hint" id="cal-hint">Click to set start date</span>
+        <div class="cal-foot-btns">
+          <button class="cal-btn cal-btn-clear" onclick="calClear(event)">Clear</button>
+          <button class="cal-btn cal-btn-apply" id="cal-apply-btn" onclick="calApply(event)" disabled>Apply</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Drill-down modal -->
+  <div id="drill-overlay" onclick="if(event.target===this)closeDrill()">
+    <div id="drill-modal">
+      <div id="drill-header">
+        <span id="drill-title"></span>
+        <button id="drill-close" onclick="closeDrill()">×</button>
+      </div>
+      <div id="drill-body"></div>
+    </div>
+  </div>
+
+  <div id="wonrate-single">
+  <div class="content-card">
+    <div class="section-heading">
+      <h2 id="wonrate-single-heading">AutoCount New Business — Won Rate by Lead Source</h2>
+      <p id="wonrate-single-subheading">Lead source performance analysis</p>
+    </div>
+
+    <!-- KPI strip (rendered by JS) -->
+    <div class="metric-grid" id="kpi-grid"></div>
+
+    <!-- Charts row -->
+    <div class="section-title">Won rate by lead source</div>
+    <div class="chart-row">
+      <div class="chart-wrap">
+        <div class="chart-wrap-title">Won rate % per source</div>
+        <div style="position:relative;width:100%;height:280px;">
+          <canvas id="wonRateChart" role="img" aria-label="Bar chart of won rate by lead source"></canvas>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-wrap-title">Won deals distribution</div>
+        <div style="position:relative;width:100%;height:220px;">
+          <canvas id="donutChart" role="img" aria-label="Donut chart of won deals by source"></canvas>
+        </div>
+        <div class="donut-legend" id="donutLegend"></div>
+      </div>
+    </div>
+
+    <!-- Detail table -->
+    <div class="section-title">Deal count and won rate detail</div>
+    <table class="won-table">
+      <thead>
+        <tr>
+          <th>Lead source</th>
+          <th style="text-align:center;">Total</th>
+          <th style="text-align:center;">Won</th>
+          <th style="text-align:center;">Lost</th>
+          <th style="text-align:center;">In progress</th>
+          <th style="text-align:right;">Won rate</th>
+          <th style="text-align:right;">Lost rate</th>
+          <th style="width:120px;">Bar</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Insight box -->
+  <div class="insight-box">
+    <div class="insight-label">BDD Insight</div>
+    <span id="wonrate-insight-text"></span>
+  </div>
+  </div><!-- /wonrate-single -->
+
+  <!-- ── Q vs Q Comparison ── -->
+  <div id="wonrate-qcompare" class="compare-section">
+    <div class="content-card">
+      <div class="section-heading">
+        <h2>Quarter-by-Quarter Comparison</h2>
+        <p>Won rate % per lead source broken down by quarter · click any header to sort</p>
+      </div>
+      <div class="compare-kpi-row" id="q-kpi-row"></div>
+      <div class="section-title">Won rate % by source — all quarters</div>
+      <div class="chart-wrap" style="margin-bottom:20px;">
+        <div style="position:relative;width:100%;height:320px;"><canvas id="qCompareChart"></canvas></div>
+      </div>
+      <div class="section-title">Source detail — quarter by quarter</div>
+      <table class="compare-table">
+        <thead><tr>
+          <th>Lead Source</th>
+          <th style="text-align:center;color:#4DB8BD;">Q1 <span style="font-size:10px;opacity:0.6;">W / L</span></th>
+          <th style="text-align:center;color:#FF6634;">Q2 <span style="font-size:10px;opacity:0.6;">W / L</span></th>
+          <th style="text-align:center;color:#4ade80;">Q3 <span style="font-size:10px;opacity:0.6;">W / L</span></th>
+          <th style="text-align:center;color:#f59e0b;">Q4 <span style="font-size:10px;opacity:0.6;">W / L</span></th>
+          <th style="text-align:center;">Best Qtr</th>
+        </tr></thead>
+        <tbody id="q-compare-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── H1 vs H2 Comparison ── -->
+  <div id="wonrate-hcompare" class="compare-section">
+    <div class="content-card">
+      <div class="section-heading">
+        <h2>H1 vs H2 Comparison</h2>
+        <p>Won rate % per lead source — first half vs second half · Δ change highlights performance shifts</p>
+      </div>
+      <div class="compare-kpi-row" id="h-kpi-row"></div>
+      <div class="section-title">Won rate % by source — H1 vs H2</div>
+      <div class="chart-wrap" style="margin-bottom:20px;">
+        <div style="position:relative;width:100%;height:320px;"><canvas id="hCompareChart"></canvas></div>
+      </div>
+      <div class="section-title">Source detail — H1 vs H2 with delta</div>
+      <table class="compare-table">
+        <thead><tr>
+          <th>Lead Source</th>
+          <th style="text-align:center;color:#4DB8BD;">H1 Won%</th>
+          <th style="text-align:center;color:#4DB8BD;opacity:0.7;">H1 Lost%</th>
+          <th style="text-align:center;color:#FF6634;">H2 Won%</th>
+          <th style="text-align:center;color:#FF6634;opacity:0.7;">H2 Lost%</th>
+          <th style="text-align:right;">Δ Won</th>
+        </tr></thead>
+        <tbody id="h-compare-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════════════════════════════
+     TAB: PIPELINE (placeholder)
+══════════════════════════════════════ -->
+<div id="tab-pipeline" class="tab-panel">
+<div class="main">
+  <div class="placeholder-panel">
+    <div class="ph-title">Pipeline — Coming Soon</div>
+    <div class="ph-sub">Active deals, stages, and forecast will appear here once connected to Zoho CRM.</div>
+  </div>
+</div>
+</div>
+
+<!-- ══════════════════════════════════════
+     TAB: ACCOUNTS (placeholder)
+══════════════════════════════════════ -->
+<div id="tab-accounts" class="tab-panel">
+<div class="main">
+  <div class="placeholder-panel">
+    <div class="ph-title">Accounts — Coming Soon</div>
+    <div class="ph-sub">Closed AutoCount customer accounts and renewal tracking will appear here.</div>
+  </div>
+</div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+/* ── Tab switcher ── */
+function switchTab(el, targetId) {
+  const panels = document.querySelectorAll('.tab-panel');
+  const tabs = document.querySelectorAll('.subtab');
+  panels.forEach(p => p.classList.remove('active'));
+  tabs.forEach(t => t.classList.remove('active'));
+  document.getElementById(targetId).classList.add('active');
+  el.classList.add('active');
+}
+
+/* ══ Dataset registry — add future periods here ══ */
+const DATASETS = {
+  '2025-q1': {
+    label: "Q1 2025 (Jan–Mar)", subtitle: "97 deals",
+    insight: "<strong>97 AutoCount deals, 24 won (24.7% won rate)</strong>, RM 231,687 won value. <em>New Sales team · AutoCount product only (converted-lead basis, excl. BrioHR).</em> Highest volume: <strong>Webinar</strong> (32 deals). Best converting (≥8 deals): <strong>Website Visitors</strong> (44%). <strong>Kovann Mirror (RM 105K via External Referral)</strong> is the largest 2025 win. ",
+    rows: [
+      {src:"Webinar", total:32, won:7, lost:21, inprog:4, wonAmt:27895, deals:[{name:"L & L Stationery | ATC Pro 5U v2 upg + eInv 1 Co",month:"Jan 2025",stage:"Won",status:"won",amount:2995},{name:"Sastronic | V2 upgrade + e-invoicing 4C",month:"Jan 2025",stage:"Won",status:"won",amount:10220},{name:"Ideas Policy Research Berhad | ATC Accounting + e-inv",month:"Jan 2025",stage:"Lost",status:"lost",amount:0},{name:"E-inv | INDELFE",month:"Jan 2025",stage:"Lost",status:"lost",amount:5040},{name:"TT FISH MART | ATC e-Inv",month:"Jan 2025",stage:"Demo",status:"open",amount:0},{name:"Kinetrol Asia | ATC Premium eInv 1 Co",month:"Jan 2025",stage:"Won",status:"won",amount:2000},{name:"Tai Seng Tyres Trading Sdn Bhd",month:"Jan 2025",stage:"Demo",status:"open",amount:1330},{name:"Litt Tatt | Report Customization",month:"Feb 2025",stage:"Lost",status:"lost",amount:0},{name:"Jesmm Manufacture | ATC Account Plus",month:"Feb 2025",stage:"Lost",status:"lost",amount:3140},{name:"Fashionhomez | Cloud Accounting Lite 1 User",month:"Feb 2025",stage:"Won",status:"won",amount:1140},{name:"B&J Computer Services | Account plus",month:"Feb 2025",stage:"Lost",status:"lost",amount:3138},{name:"TKTC enterprise | ATC Cloud Accounting Lite 2 Years",month:"Feb 2025",stage:"Lost",status:"lost",amount:1690},{name:"Crossroad Publication | Cloud Accounting",month:"Feb 2025",stage:"Lost",status:"lost",amount:0},{name:"STD Vision | ATC & E-Inv Online Demo",month:"Feb 2025",stage:"Lost",status:"lost",amount:0},{name:"Ks Liong | e-invoicing",month:"Feb 2025",stage:"Leads",status:"open",amount:0},{name:"Account plus | Baba seafood",month:"Feb 2025",stage:"Won",status:"won",amount:4525},{name:"E-inv | Insplace Trading",month:"Feb 2025",stage:"Lost",status:"lost",amount:0},{name:"Multigrowth Plus Sdn Bhd",month:"Feb 2025",stage:"Negotiation",status:"open",amount:10000},{name:"Wan Ling Tan | e-invoicing",month:"Feb 2025",stage:"Lost",status:"lost",amount:0},{name:"Atc | PGH MANAGEMENT CONSULTANCY & SERVICES",month:"Feb 2025",stage:"Lost",status:"lost",amount:3065},{name:"Zealtechnic Solution Sdn Bhd | V2 upgrade + e-inv",month:"Feb 2025",stage:"Lost",status:"lost",amount:4060},{name:"Koh Motor | ATC Acc Plus + eInv",month:"Feb 2025",stage:"Lost",status:"lost",amount:2890},{name:"Ubs - atc | KY computer",month:"Feb 2025",stage:"Lost",status:"lost",amount:0},{name:"Mrs Chin Freelance | ATC Cloud Accounting",month:"Feb 2025",stage:"Lost",status:"lost",amount:1330},{name:"ATC | O'rec Sdn Bhd",month:"Feb 2025",stage:"Won",status:"won",amount:4275},{name:"RB & Co | ATC e-invoicing",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"E-inv | Setia Hospimart",month:"Mar 2025",stage:"Lost",status:"lost",amount:3150},{name:"E-inv | SIMHAN",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"Annie Yong | ATC e-inv",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"C.N Chan Management Services | ATC + BMS",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"SelectPack Technology (SE Asia) Sdn Bhd",month:"Mar 2025",stage:"Won",status:"won",amount:2740},{name:"Cloud E-inv Training | CJM One Stop Enterprise",month:"Mar 2025",stage:"Lost",status:"lost",amount:0}]},
+      {src:"Website Visitors", total:16, won:7, lost:8, inprog:1, wonAmt:19125, deals:[{name:"Sunny Spot | Account Plus + e-invoice 1C",month:"Jan 2025",stage:"Won",status:"won",amount:4040},{name:"Sharaa Consultancy | Account Plus + e-invoice 1C",month:"Jan 2025",stage:"Won",status:"won",amount:1950},{name:"HLL Management | e-invoice 3 Companies",month:"Jan 2025",stage:"Lost",status:"lost",amount:4585},{name:"Norvic Corporate Services | ATC eInv / Cloud Accounting",month:"Jan 2025",stage:"Lost",status:"lost",amount:0},{name:"Empayar Holding Enterprise | Training",month:"Jan 2025",stage:"Won",status:"won",amount:2570},{name:"Ramusa Engineering Sdn Bhd",month:"Feb 2025",stage:"Lost",status:"lost",amount:0},{name:"DTEQ Asia Pacific | ATC Acc Plus 1U + eInv 1 Co",month:"Feb 2025",stage:"Won",status:"won",amount:2650},{name:"Feng Yuan Furniture | ATC Basic 3U + eInv 1 Co",month:"Feb 2025",stage:"Lost",status:"lost",amount:7770},{name:"PPW VENTURES | ATC Upg 2U + eInv 1Co",month:"Feb 2025",stage:"Won",status:"won",amount:3540},{name:"Kaolin (Malaysia) | AutoCount Cloud Payroll 60HC",month:"Feb 2025",stage:"Won",status:"won",amount:1840},{name:"E-inv 1.9-2.2 | SYARIKAT KONG NGEE",month:"Feb 2025",stage:"Lost",status:"lost",amount:5185},{name:"Kenjo | ATC Basic 3U + POS + eInv 1 Co + appAccess",month:"Feb 2025",stage:"Lost",status:"lost",amount:35379},{name:"Atc | Acten FH Tire",month:"Mar 2025",stage:"Lost",status:"lost",amount:3100},{name:"Nana | ATC | e-invoicing",month:"Mar 2025",stage:"Negotiation",status:"open",amount:0},{name:"Miss Fa | ATC Account Plus + E-inv",month:"Mar 2025",stage:"Won",status:"won",amount:2535},{name:"Alat-Alat Ganti Hock Leong | AutoCount Demo",month:"Mar 2025",stage:"Lost",status:"lost",amount:3785}]},
+      {src:"Facebook", total:10, won:1, lost:7, inprog:2, wonAmt:2859, deals:[{name:"Mandeep Singh | ATC Online Demo",month:"Jan 2025",stage:"Lost",status:"lost",amount:0},{name:"cCloud Accounting | Mykrishna Empire",month:"Jan 2025",stage:"Lost",status:"lost",amount:3560},{name:"Sharon | Account Plus + Unlimited Accountbook",month:"Jan 2025",stage:"Worst Case",status:"open",amount:6830},{name:"SIN YEW SENG | ATC Accounting + e-inv",month:"Jan 2025",stage:"Lost",status:"lost",amount:0},{name:"Masjid Bukit Rahman Putra | ATC Basic 2U + eInv 1Co",month:"Jan 2025",stage:"Lost",status:"lost",amount:18710},{name:"Deto Engineering | ATC Basic + 1Co eInv",month:"Feb 2025",stage:"Lost",status:"lost",amount:6890},{name:"E-inv 2.0 (freelancer) | CL Wong",month:"Feb 2025",stage:"Won",status:"won",amount:2859},{name:"Pengeluaran Hasil Laut Endau | 1.9-2.2 E-inv upgrade",month:"Feb 2025",stage:"Lost",status:"lost",amount:2875},{name:"JT Agency | ATC Acc Plus 1U + eInv 3 Co",month:"Feb 2025",stage:"Lost",status:"lost",amount:4500},{name:"Jing Liang Hair Unisex And Beauty Saloon",month:"Feb 2025",stage:"Quotation",status:"open",amount:0}]},
+      {src:"External Referral", total:10, won:4, lost:6, inprog:0, wonAmt:161678, deals:[{name:"Bonding Technology Resources (Chemibond) | ATC Pre 10U + eInv 2 Co",month:"Jan 2025",stage:"Won",status:"won",amount:45228},{name:"Qasih Global Sdn Bhd | ATC Accounting + e-inv",month:"Jan 2025",stage:"Lost",status:"lost",amount:3140},{name:"Loara Sdn Bhd | ATC Accounting basic",month:"Jan 2025",stage:"Lost",status:"lost",amount:5835},{name:"TIN Transport Trading | ATC Acc Plus + eInv 2Co",month:"Feb 2025",stage:"Lost",status:"lost",amount:0},{name:"ATC Plus | Effective Virtual Resources Sdn Bhd",month:"Feb 2025",stage:"Lost",status:"lost",amount:2965},{name:"Tee & Chua | ATC POS Branch add 2 Units",month:"Feb 2025",stage:"Won",status:"won",amount:5500},{name:"Sharwin Foam | ATC V2 Upg 3U + eInv 1Co",month:"Mar 2025",stage:"Won",status:"won",amount:5950},{name:"Ella Fesyen",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"Kovann Mirror | ATC Premium 5U + Customization",month:"Mar 2025",stage:"Won",status:"won",amount:105000},{name:"IEM Resources | ATC Exp Plus",month:"Mar 2025",stage:"Lost",status:"lost",amount:0}]},
+      {src:"Lead Magnet", total:8, won:1, lost:5, inprog:2, wonAmt:1910, deals:[{name:"Tech Forge | ATC + eInv",month:"Jan 2025",stage:"Lost",status:"lost",amount:0},{name:"CLC Metal Works | ATC Acc Plus V2.2 + eInv",month:"Jan 2025",stage:"Lost",status:"lost",amount:3140},{name:"Ash29 Enterprise | ATC Account Plus",month:"Jan 2025",stage:"Leads",status:"open",amount:3140},{name:"EVMS Management Consultants | ATC Accounting",month:"Jan 2025",stage:"Lost",status:"lost",amount:0},{name:"Smart Excellence Enterprise | ATC Cloud Accounting Lite",month:"Jan 2025",stage:"Negotiation",status:"open",amount:1440},{name:"Lumi Marketing | ATC On-site Demo",month:"Feb 2025",stage:"Lost",status:"lost",amount:4136},{name:"ABX (Global Express) | Autocount Support",month:"Feb 2025",stage:"Won",status:"won",amount:1910},{name:"KSMT | ATC Acc Plus",month:"Mar 2025",stage:"Lost",status:"lost",amount:3185}]},
+      {src:"Old Gold", total:6, won:3, lost:3, inprog:0, wonAmt:11340, deals:[{name:"LESLIE YAP & CO | ATC V2 Upg + eInv",month:"Feb 2025",stage:"Won",status:"won",amount:8570},{name:"E-inv + Support | CK Living Enterprise",month:"Feb 2025",stage:"Lost",status:"lost",amount:4000},{name:"Eunike Piano Lessons | AutoCount Cloud Accounting Lite",month:"Feb 2025",stage:"Won",status:"won",amount:720},{name:"Tuff Industries (M) Sdn Bhd",month:"Feb 2025",stage:"Lost",status:"lost",amount:4370},{name:"Ong Yik Chen | ATC Account Plus",month:"Mar 2025",stage:"Won",status:"won",amount:2050},{name:"IBS BUKU | ATC Acc Plus 1U eInv 1 Co",month:"Mar 2025",stage:"Lost",status:"lost",amount:6795}]},
+      {src:"Web Forms", total:3, won:0, lost:3, inprog:0, wonAmt:0, deals:[{name:"BML BUILDERS | AutoCount | Progressive billing",month:"Jan 2025",stage:"Lost",status:"lost",amount:0},{name:"Account plus | Luxx newhouse furniture",month:"Jan 2025",stage:"Lost",status:"lost",amount:4805},{name:"Spectrum Packaging Industries | ATC Premium 3U + eInv 4 Co",month:"Feb 2025",stage:"Lost",status:"lost",amount:23160}]},
+      {src:"Principal", total:3, won:0, lost:3, inprog:0, wonAmt:0, deals:[{name:"Pyaroll | Hybrid Publication",month:"Jan 2025",stage:"Lost",status:"lost",amount:0},{name:"Atc Cloud | Ekoinvensi",month:"Jan 2025",stage:"Lost",status:"lost",amount:1805},{name:"Hadra Sdn Bhd | ATC Cloud Payroll",month:"Feb 2025",stage:"Lost",status:"lost",amount:1840}]},
+      {src:"Live Chat", total:3, won:1, lost:2, inprog:0, wonAmt:6880, deals:[{name:"AV Manufacturing | Fingertec Face ID",month:"Mar 2025",stage:"Lost",status:"lost",amount:5100},{name:"Emstech Computer Centre ATC Basic Demo",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"KCA Energy | ATC Basic 3U + E-invoice 1C",month:"Mar 2025",stage:"Won",status:"won",amount:6880}]},
+      {src:"Google Adwords", total:3, won:0, lost:3, inprog:0, wonAmt:0, deals:[{name:"Multi Effort (M) Sdn Bhd",month:"Mar 2025",stage:"Lost",status:"lost",amount:3050},{name:"Today Bakeries Products (Klang) | ATC Pre 3U + eInv 1 Co",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"Atc | Rizqi Appliances Enterprise",month:"Mar 2025",stage:"Lost",status:"lost",amount:0}]},
+      {src:"WhatsApp", total:2, won:0, lost:2, inprog:0, wonAmt:0, deals:[{name:"ATC | Eagle Cabin",month:"Feb 2025",stage:"Lost",status:"lost",amount:2999},{name:"Nisha Florist | ATC Accounting Basic + 1 user",month:"Feb 2025",stage:"Lost",status:"lost",amount:6470}]},
+      {src:"Trade Show", total:1, won:0, lost:1, inprog:0, wonAmt:0, deals:[{name:"RBM | ATC Basic + einv + DM + Plugin",month:"Mar 2025",stage:"Lost",status:"lost",amount:0}]}
+    ]
+  },
+  '2025-q2': {
+    label: "Q2 2025 (Apr–Jun)", subtitle: "121 deals",
+    insight: "<strong>121 AutoCount deals, 36 won (29.8% won rate)</strong>, RM 210,356 won value. <em>New Sales team · AutoCount product only (converted-lead basis, excl. BrioHR).</em> Highest volume: <strong>Website Visitors</strong> (31 deals). ",
+    rows: [
+      {src:"Website Visitors", total:31, won:13, lost:17, inprog:1, wonAmt:93991, deals:[{name:"Megah Utama Shipping | AutoCount",month:"Apr 2025",stage:"Lost",status:"lost",amount:10000},{name:"[Grant]MC Mitra | ATC Cloud Accounting 5yr",month:"Apr 2025",stage:"Won",status:"won",amount:8410},{name:"Perbadanan Pengurusan Pangsapuri Mutiara | Account plus",month:"Apr 2025",stage:"Won",status:"won",amount:2300},{name:"PTS Food Distribution | ATC SQL Runtime License 23U",month:"Apr 2025",stage:"Won",status:"won",amount:18400},{name:"TG Lighting | ATC POS Std",month:"Apr 2025",stage:"Lost",status:"lost",amount:6304},{name:"Midec Wood | ATC Acc Plus + eInv + Customization",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"Restoran Nasi Kandar Melotop | POS System",month:"Apr 2025",stage:"Won",status:"won",amount:9880},{name:"Friendbond Corporate Advisory | AutoCount Accountant Set",month:"Apr 2025",stage:"Won",status:"won",amount:8620},{name:"Maxpro Chemical | ATC Acc Plus",month:"Apr 2025",stage:"Won",status:"won",amount:2985},{name:"Veygah Chem Trading | ATC Acc Plus Demo",month:"Apr 2025",stage:"Lost",status:"lost",amount:3880},{name:"Kinsen Home | ATC solutioning / WMS",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"Basic + Item matrix | BBV Classic Sdn Bhd",month:"Apr 2025",stage:"Lost",status:"lost",amount:3000},{name:"N&G Management Services Sdn Bhd",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"Training | I&E Converge Sdn Bhd",month:"Apr 2025",stage:"Won",status:"won",amount:650},{name:"Accountplus | MrTew | Perniagaan sri setiajaya",month:"Apr 2025",stage:"Lost",status:"lost",amount:2800},{name:"Chinnyi Gold Gifts | ATC Acc Plus 2U + eInv 1 Co + AppAccess",month:"May 2025",stage:"Won",status:"won",amount:4635},{name:"Erawan Security | ATC Acc Plus",month:"May 2025",stage:"Won",status:"won",amount:3100},{name:"BUNGA RAYA FLORA NURSERY | ATC Acc Plus",month:"May 2025",stage:"Demo",status:"open",amount:0},{name:"Ken Khor | ATC PalmPOS",month:"May 2025",stage:"Won",status:"won",amount:1138},{name:"Wegrow Global | POS Standard",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"SP William | ATC Acc Plus 1U + eInv 6 Co",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"Above Creative Events | ATC Acc Plus 4U",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"Sri Maju Logistik | ATC CA Basic",month:"May 2025",stage:"Lost",status:"lost",amount:600},{name:"E-inv | Hydrojuta Kinetics Sdn Bhd",month:"Jun 2025",stage:"Lost",status:"lost",amount:7325},{name:"E-inv | KIAN GIAP INTERIOR",month:"Jun 2025",stage:"Won",status:"won",amount:4588},{name:"Rascotec | Integration with FOCUS",month:"Jun 2025",stage:"Lost",status:"lost",amount:54880},{name:"Affinity Consulting Engineers | ATC Acc Plus 1U + eInv",month:"Jun 2025",stage:"Won",status:"won",amount:3885},{name:"RFS Hydraulics Sdn Bhd | SQL Runtime license 22 Users",month:"Jun 2025",stage:"Lost",status:"lost",amount:17950},{name:"BE Automation | Autocount Account Plus",month:"Jun 2025",stage:"Lost",status:"lost",amount:2740},{name:"HRDC | DML Alu | ATC Pre 6U + SN + eInv 2 Co",month:"Jun 2025",stage:"Won",status:"won",amount:25400},{name:"ARAF MAJU | Grant ATC Accounting + POS",month:"Jun 2025",stage:"Lost",status:"lost",amount:6000}]},
+      {src:"Google Adwords", total:25, won:8, lost:14, inprog:3, wonAmt:53864, deals:[{name:"Account Plus | SEA VILLAGE RESTORAN",month:"Apr 2025",stage:"Lost",status:"lost",amount:3066},{name:"Nedun Janagi Enterprise | ATC Account Plus",month:"Apr 2025",stage:"Lost",status:"lost",amount:3185},{name:"LIEW LIK YI | E-inv",month:"Apr 2025",stage:"Quotation",status:"open",amount:0},{name:"Chando (Malaysia) Sdn Bhd | Looking for Site Giant link",month:"Apr 2025",stage:"Lost",status:"lost",amount:7580},{name:"Aush Milby | AutoCount Account Plus + 1 EINV",month:"Apr 2025",stage:"Won",status:"won",amount:2085},{name:"Account plus | TSC Green",month:"Apr 2025",stage:"Lost",status:"lost",amount:2000},{name:"I Tiara Production Sdn Bhd | Account Plus",month:"Apr 2025",stage:"Lost",status:"lost",amount:2717},{name:"LCM Maha Energy | ATC Pro + AppAccess 1 User",month:"Apr 2025",stage:"Won",status:"won",amount:6900},{name:"U & I Production House (M) Sdn Bhd",month:"May 2025",stage:"Lost",status:"lost",amount:3385},{name:"Pekan Ilmu Publications | ATC Accounting Basic",month:"May 2025",stage:"Lost",status:"lost",amount:5230},{name:"Force Car Turbo Service",month:"May 2025",stage:"Lost",status:"lost",amount:2140},{name:"Chop Wah Hin",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"Yee Sern Hardware | V2 upgrade + e-inv",month:"May 2025",stage:"Quotation",status:"open",amount:3457},{name:"MHL Global Trading | ATC POS Basic",month:"May 2025",stage:"Won",status:"won",amount:3500},{name:"Heng Leong Toys Center | ATC POS Standard + Hardware",month:"May 2025",stage:"Lost",status:"lost",amount:12389},{name:"POS + Basic | Yumi Bakery",month:"Jun 2025",stage:"Won",status:"won",amount:26749},{name:"Accountant set | X Consultancy Group",month:"Jun 2025",stage:"Lost",status:"lost",amount:3150},{name:"KS Brothers Metal Trading | ATC ACC PLUS",month:"Jun 2025",stage:"Lost",status:"lost",amount:3135},{name:"Pusat Bahasa Aspen | ATC Cloud Accounting Basic Edition",month:"Jun 2025",stage:"Won",status:"won",amount:1920},{name:"A6 Engineering Enterprise | ATC Demo",month:"Jun 2025",stage:"Lost",status:"lost",amount:0},{name:"Gear Master Empire | Express Plus 1 User + einv 1C",month:"Jun 2025",stage:"Won",status:"won",amount:2650},{name:"SpaceItOut Interior Design | ATC Acc Plus + eInv",month:"Jun 2025",stage:"Demo",status:"open",amount:3385},{name:"Pusat Pendidikan Al Hikmah | ATC Basic 4 users",month:"Jun 2025",stage:"Won",status:"won",amount:9280},{name:"J Velu Enterprise",month:"Jun 2025",stage:"Lost",status:"lost",amount:6000},{name:"ONG IT & COMPUTER MISSION",month:"Jun 2025",stage:"Won",status:"won",amount:780}]},
+      {src:"External Referral", total:13, won:2, lost:11, inprog:0, wonAmt:3845, deals:[{name:"Amy | Upgrade to V2",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"1.9-2.2 Express + 1 Com E-inv | Perniagaan Mesin",month:"Apr 2025",stage:"Won",status:"won",amount:1705},{name:"Sato One Stop (SMY) | ATC Accounting Basic",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"Teguh Sarjana Global Resources | ATC Acc Plus",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"DNKS Corporation | Access UBS AB + eInv training",month:"May 2025",stage:"Lost",status:"lost",amount:4157},{name:"Ribuan Positif | AutoCount Acc Plus / Cloud Accounting",month:"May 2025",stage:"Lost",status:"lost",amount:3385},{name:"WELIGHT TRADING | ATC Exp Plus",month:"May 2025",stage:"Lost",status:"lost",amount:3450},{name:"D&A ELECTRICAL AND ELECTRONIC",month:"May 2025",stage:"Won",status:"won",amount:2140},{name:"Tabib Perubatan Sendi - Sendi Tulang",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"LSK Auto Enterprise",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"E-inv Demo | GC Express Logistics Sdn Bhd",month:"Jun 2025",stage:"Lost",status:"lost",amount:5220},{name:"Referred by Ray | United Johnco | ATC Basic 1U + eInv 2 Co",month:"Jun 2025",stage:"Lost",status:"lost",amount:0},{name:"Starch Trade Sdn Bhd",month:"Jun 2025",stage:"Lost",status:"lost",amount:1}]},
+      {src:"Webinar", total:12, won:3, lost:8, inprog:1, wonAmt:13494, deals:[{name:"1.9-2.2 + API | SBT SOFTWARE CONSULTING SDN BHD",month:"Apr 2025",stage:"Lost",status:"lost",amount:5000},{name:"Sincere Equipment Sdn Bhd",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"My digital media | AutoCount cloud accounting",month:"Apr 2025",stage:"Demo",status:"open",amount:0},{name:"Cloud Accounting | Sledgehammer",month:"Apr 2025",stage:"Won",status:"won",amount:3474},{name:"Account Plus | VL APPAREL",month:"May 2025",stage:"Lost",status:"lost",amount:2965},{name:"Ms Teng | ATC V2 Upg / ATC CA",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"MAJU HANDICRAFT SDN BHD",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"PAN CONTINENTAL | ATC Basic",month:"May 2025",stage:"Lost",status:"lost",amount:4130},{name:"YOU FOONG SERVICE",month:"Jun 2025",stage:"Lost",status:"lost",amount:1200},{name:"M SALIM Curtain PLT | ATC DEMO",month:"Jun 2025",stage:"Lost",status:"lost",amount:0},{name:"Stenergy Medical Supplies | ATC Pro 1U",month:"Jun 2025",stage:"Won",status:"won",amount:7280},{name:"Wiz Management | PELICAN ENT",month:"Jun 2025",stage:"Won",status:"won",amount:2740}]},
+      {src:"Live Chat", total:9, won:3, lost:6, inprog:0, wonAmt:12138, deals:[{name:"Account plus + E-inv | TADIKA KEMBANG MINDA",month:"Apr 2025",stage:"Won",status:"won",amount:2788},{name:"Conique Sdn Bhd",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"BM Sport Bikers Accessories | ATC V2 Upgrade",month:"May 2025",stage:"Won",status:"won",amount:2670},{name:"Patentmall | ACA Basic",month:"May 2025",stage:"Lost",status:"lost",amount:1660},{name:"Bric Innovative | ATC Basic Upg + eInv",month:"May 2025",stage:"Won",status:"won",amount:6680},{name:"Aida, Rina & Associates | UBS AB 1U Reactivation",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"Negative Signature | ATC Accounting Basic",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"Precision Torque Tools | ATC Cloud Acc Plus",month:"Jun 2025",stage:"Lost",status:"lost",amount:0},{name:"Basic | Willeim Steel Engineering Sdn Bhd",month:"Jun 2025",stage:"Lost",status:"lost",amount:3000}]},
+      {src:"WhatsApp", total:7, won:1, lost:5, inprog:1, wonAmt:2551, deals:[{name:"Pos fnb | NASI AYAM",month:"Apr 2025",stage:"Lost",status:"lost",amount:5461},{name:"PVB Trading",month:"Apr 2025",stage:"Won",status:"won",amount:2551},{name:"Harizan Rahman | Accountant set",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"Cheng Jie Precision Engineering",month:"Apr 2025",stage:"Demo",status:"open",amount:0},{name:"Ng Ah Tiam Trading | Acc Plus + ATC POS",month:"May 2025",stage:"Lost",status:"lost",amount:7000},{name:"Cargate Auto Enterprise | Upgrade v2 e-invoice",month:"Jun 2025",stage:"Lost",status:"lost",amount:1830},{name:"Plentong Lienhuat Building Materials | AutoCount e-Invoice",month:"Jun 2025",stage:"Lost",status:"lost",amount:8363}]},
+      {src:"Lead Magnet", total:7, won:0, lost:7, inprog:0, wonAmt:0, deals:[{name:"Excel Glow sdn Bhd",month:"Apr 2025",stage:"Lost",status:"lost",amount:3085},{name:"POS Branch | World Frozen Food Sdn Bhd",month:"May 2025",stage:"Lost",status:"lost",amount:3650},{name:"DAYA ANGSANA | ATC Demo",month:"May 2025",stage:"Lost",status:"lost",amount:3235},{name:"ZULDA MASRI FASHION",month:"May 2025",stage:"Lost",status:"lost",amount:7149},{name:"Satu Hati Travel & Tours Sdn Bhd",month:"Jun 2025",stage:"Lost",status:"lost",amount:1430},{name:"KCAF MAREKTING | ATC Exp Plus",month:"Jun 2025",stage:"Lost",status:"lost",amount:0},{name:"HOREM TRDG | ATC POS Basic",month:"Jun 2025",stage:"Lost",status:"lost",amount:4200}]},
+      {src:"Principal", total:4, won:1, lost:2, inprog:1, wonAmt:1665, deals:[{name:"Accountplius | NBIT Technology",month:"Apr 2025",stage:"Lost",status:"lost",amount:1640},{name:"Ampang Gold Traders | POS",month:"May 2025",stage:"Quotation",status:"open",amount:4715},{name:"Reveillon Group | ATC Pro 5U + eInv 1 Co",month:"Jun 2025",stage:"Lost",status:"lost",amount:33229},{name:"SLC | ATC V2 Upgrade + eInv",month:"Jun 2025",stage:"Won",status:"won",amount:1665}]},
+      {src:"Advertisement", total:3, won:0, lost:1, inprog:2, wonAmt:0, deals:[{name:"MH NG Trading | ATC Basic + eInv",month:"Apr 2025",stage:"Lost",status:"lost",amount:4530},{name:"Perkayuan Tat Lee | ATC Basic",month:"May 2025",stage:"Negotiation",status:"open",amount:5230},{name:"Guew Mun Kam | Cloud Accounting",month:"May 2025",stage:"Demo",status:"open",amount:0}]},
+      {src:"Web Forms", total:2, won:2, lost:0, inprog:0, wonAmt:3730, deals:[{name:"Waterjet Art Design | ATC Cloud Account Basic 2Y",month:"Apr 2025",stage:"Won",status:"won",amount:2120},{name:"Kosas Travel & Tours | ATC CA",month:"May 2025",stage:"Won",status:"won",amount:1610}]},
+      {src:"Facebook", total:2, won:1, lost:1, inprog:0, wonAmt:18780, deals:[{name:"Kedai Ubat Wan Soon | ATC POS Basic",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"iFlexs | Basic Edition 3U + e-invoice 2C + VPS + AppAccess",month:"May 2025",stage:"Won",status:"won",amount:18780}]},
+      {src:"Old Gold", total:2, won:1, lost:1, inprog:0, wonAmt:4330, deals:[{name:"Hoffset Printing | ATC Basic eInv 1 Co + Training",month:"Apr 2025",stage:"Won",status:"won",amount:4330},{name:"Vision Tech Electrical Engineering Sdn Bhd",month:"May 2025",stage:"Lost",status:"lost",amount:2965}]},
+      {src:"Zoho Bookings", total:1, won:0, lost:1, inprog:0, wonAmt:0, deals:[{name:"BeWell Pharmacy Puchong",month:"Apr 2025",stage:"Lost",status:"lost",amount:6432}]},
+      {src:"Missed Call", total:1, won:0, lost:1, inprog:0, wonAmt:0, deals:[{name:"YSM Seremban Distributor Sdn Bhd",month:"Apr 2025",stage:"Lost",status:"lost",amount:0}]},
+      {src:"Marketing Campaign", total:1, won:1, lost:0, inprog:0, wonAmt:1968, deals:[{name:"1.9-2.2 Account plus | Pang Siang Enterprise",month:"Apr 2025",stage:"Won",status:"won",amount:1968}]},
+      {src:"Employee Referral", total:1, won:0, lost:1, inprog:0, wonAmt:0, deals:[{name:"Aurum Paradisa | ATC Basic Cloud Accounting 2Y",month:"May 2025",stage:"Lost",status:"lost",amount:1320}]}
+    ]
+  },
+  '2025-q3': {
+    label: "Q3 2025 (Jul–Sep)", subtitle: "70 deals",
+    insight: "<strong>70 AutoCount deals, 16 won (22.9% won rate)</strong>, RM 71,652 won value. <em>New Sales team · AutoCount product only (converted-lead basis, excl. BrioHR).</em> Highest volume: <strong>Facebook</strong> (27 deals). Best converting (≥8 deals): <strong>Website Visitors</strong> (25%). ",
+    rows: [
+      {src:"Facebook", total:27, won:3, lost:19, inprog:5, wonAmt:22777, deals:[{name:"Cloud Account | Sree Kavin Success",month:"Jul 2025",stage:"Lost",status:"lost",amount:1840},{name:"Emphasis Media | ATC Payroll",month:"Jul 2025",stage:"Lost",status:"lost",amount:0},{name:"DT Multi Sdn Bhd",month:"Jul 2025",stage:"Won",status:"won",amount:250},{name:"Basic | Blaze Nail Beauty Sdn Bhd",month:"Jul 2025",stage:"Lost",status:"lost",amount:0},{name:"Siddieq Corner | ATC Acc Plus + POS",month:"Jul 2025",stage:"Quotation",status:"open",amount:0},{name:"Din | ATC Palm POS",month:"Jul 2025",stage:"Lost",status:"lost",amount:0},{name:"Nissa Global Sdn Bhd",month:"Jul 2025",stage:"Lost",status:"lost",amount:0},{name:"Avionics Wheels | ATC Exp Plus + Workshop + eInv 3 Co",month:"Jul 2025",stage:"Lost",status:"lost",amount:0},{name:"Accelutions Digital Technology | ATC Acc Plus",month:"Jul 2025",stage:"Lost",status:"lost",amount:2400},{name:"POS (Retail) | ABID KHOIR ENTERPRISE",month:"Aug 2025",stage:"Lost",status:"lost",amount:5000},{name:"D Saujana Catering | ATC Acct. Plus 1 User",month:"Aug 2025",stage:"Won",status:"won",amount:1700},{name:"IHK Welding | ATC POS (Kiosk)",month:"Aug 2025",stage:"Lost",status:"lost",amount:0},{name:"Terminal Restaurant and Bar | ATC POS Solution",month:"Aug 2025",stage:"Lost",status:"lost",amount:2400},{name:"Trevi 33 | ATC Cloud Accounting Plus 2Y",month:"Aug 2025",stage:"Demo",status:"open",amount:2290},{name:"Batik Sensation | ATC Pro 3U + Item Matrix",month:"Aug 2025",stage:"Demo",status:"open",amount:12830},{name:"1.9 - 2.2 | Big Day Marketing Sdn Bhd",month:"Aug 2025",stage:"Negotiation",status:"open",amount:3000},{name:"Tadika Genius Cerdik",month:"Aug 2025",stage:"Lost",status:"lost",amount:0},{name:"Basic | Ong Bundle",month:"Aug 2025",stage:"Lost",status:"lost",amount:5000},{name:"Bushra International | ATC CA Plus",month:"Aug 2025",stage:"Lost",status:"lost",amount:1900},{name:"Zulkefly | ATC Payroll",month:"Aug 2025",stage:"Lost",status:"lost",amount:1858},{name:"Kasatech Hardwares | ATC Basic 3 Users + Sitegiant + Cloud Payroll",month:"Sep 2025",stage:"Won",status:"won",amount:20827},{name:"PS3G Sdn Bhd | Autocount HRMS with e-attendance",month:"Sep 2025",stage:"Lost",status:"lost",amount:6798},{name:"POS Hardware | Riz",month:"Sep 2025",stage:"Lost",status:"lost",amount:2088},{name:"Basic | A&C Department store sdn bhd",month:"Sep 2025",stage:"Lost",status:"lost",amount:4500},{name:"ATC Cloud Accounting Plus 2Y | TMG Business Development",month:"Sep 2025",stage:"Negotiation",status:"open",amount:2440},{name:"PIDEZZA | Xilnex POS",month:"Sep 2025",stage:"Lost",status:"lost",amount:0},{name:"Pro + 14 User + Plugin | Spektra Bumimas Sdn Bhd",month:"Sep 2025",stage:"Lost",status:"lost",amount:25000}]},
+      {src:"Website Visitors", total:20, won:5, lost:15, inprog:0, wonAmt:30438, deals:[{name:"Besqem Marketing | ATC Acct. Plus 1U + E-invoice 1U",month:"Jul 2025",stage:"Won",status:"won",amount:2585},{name:"Hiap Hong Agencies (Seremban) | ATC Basic 4U + eInv 1 Co",month:"Jul 2025",stage:"Won",status:"won",amount:18830},{name:"Account | KF Renovation",month:"Jul 2025",stage:"Lost",status:"lost",amount:4350},{name:"Highway Star | ATC Accounting w integrator",month:"Jul 2025",stage:"Lost",status:"lost",amount:5230},{name:"Highway Star | Payroll HRMS",month:"Jul 2025",stage:"Lost",status:"lost",amount:1715},{name:"Cloud Accounting-plus | Visible Construction",month:"Jul 2025",stage:"Won",status:"won",amount:2290},{name:"Moghul Mahal | ATC Acc Plus",month:"Jul 2025",stage:"Lost",status:"lost",amount:2450},{name:"Seremban Toast House | Xilnex POS Quickservice 3 Outlets",month:"Jul 2025",stage:"Lost",status:"lost",amount:26685},{name:"Payroll | TQS Konsult PLT",month:"Aug 2025",stage:"Lost",status:"lost",amount:1865},{name:"Today Bakeries Products (Klang) | ATC POS",month:"Aug 2025",stage:"Lost",status:"lost",amount:0},{name:"Maritime Network | ATC Bas 4U + eInv 1 Co + Integrator",month:"Aug 2025",stage:"Lost",status:"lost",amount:18410},{name:"(Merdeka promo) Account plus | Sonoma Furniture Sdn Bhd",month:"Aug 2025",stage:"Lost",status:"lost",amount:2800},{name:"Mofa Tech | ATC Account Plus 1 User + e-invoice 1 Company",month:"Aug 2025",stage:"Won",status:"won",amount:2300},{name:"Accountplus | Ataj Mgt",month:"Aug 2025",stage:"Lost",status:"lost",amount:3000},{name:"SS One Capital | Autocount Account Plus",month:"Sep 2025",stage:"Lost",status:"lost",amount:3000},{name:"Zahara Media | ATC Basic 1 User + Cloud Payroll 5 Users",month:"Sep 2025",stage:"Won",status:"won",amount:4433},{name:"Support + Cloud Server | Star Fine Chemicals",month:"Sep 2025",stage:"Lost",status:"lost",amount:4080},{name:"Accountplus | H&J Furniture Renovation",month:"Sep 2025",stage:"Lost",status:"lost",amount:1825},{name:"Cloud Accounting + Palm Pos | Cico Marketing",month:"Sep 2025",stage:"Lost",status:"lost",amount:3000},{name:"Flexi Flex Hydraulics | ATC Pro 5U",month:"Sep 2025",stage:"Lost",status:"lost",amount:15030}]},
+      {src:"Google Adwords", total:12, won:3, lost:8, inprog:1, wonAmt:3660, deals:[{name:"E-inv Classroom Training | Wan Joo Heng Co.",month:"Jul 2025",stage:"Won",status:"won",amount:250},{name:"Pagi Pagi Enterprise | ATC Basic + F&B POS",month:"Jul 2025",stage:"Lost",status:"lost",amount:0},{name:"RR Asia | ATC Yearly Support Contract",month:"Jul 2025",stage:"Won",status:"won",amount:1100},{name:"Fixx BZ Resources | ATC CA Plus",month:"Jul 2025",stage:"Lost",status:"lost",amount:1900},{name:"El Taco Express & Amuthas Fish head curry | ATC",month:"Jul 2025",stage:"Lost",status:"lost",amount:6790},{name:"Cahaya Kelang Construction | ATC Basic 2 Users",month:"Jul 2025",stage:"Lost",status:"lost",amount:60000},{name:"AI Partners Holding Sdn Bhd | POS + Account plus",month:"Jul 2025",stage:"Lost",status:"lost",amount:6000},{name:"Express | JJ Reno Task",month:"Jul 2025",stage:"Lost",status:"lost",amount:5946},{name:"Cloud Accounting + Cloud Payroll | Elevatte Advisory",month:"Jul 2025",stage:"Won",status:"won",amount:2310},{name:"POS + Account | Money Corner Restaurant",month:"Aug 2025",stage:"Lost",status:"lost",amount:6000},{name:"KB Print And Media | ATC Account Plus",month:"Aug 2025",stage:"Lost",status:"lost",amount:3600},{name:"Perniagaan Swee Kee | ATC Pro 3U + 7 POS",month:"Aug 2025",stage:"Demo",status:"open",amount:30902}]},
+      {src:"Web Forms", total:5, won:2, lost:3, inprog:0, wonAmt:5640, deals:[{name:"FMT Media Sdn Bhd",month:"Jul 2025",stage:"Won",status:"won",amount:700},{name:"CKF Duck Food | ATC Premium + Disassembly",month:"Jul 2025",stage:"Lost",status:"lost",amount:14550},{name:"MIM BA GROUP | ATC POS",month:"Aug 2025",stage:"Lost",status:"lost",amount:0},{name:"Mayshowa Sdn Bhd | ATC Premium 3U",month:"Sep 2025",stage:"Lost",status:"lost",amount:0},{name:"Account plus + Payroll | Leader Logistic Worldwide",month:"Sep 2025",stage:"Won",status:"won",amount:4940}]},
+      {src:"Live Chat", total:2, won:1, lost:1, inprog:0, wonAmt:600, deals:[{name:"TRI CAPITAL RESOURCES | ATC Basic Training Stock + SST Module",month:"Jul 2025",stage:"Won",status:"won",amount:600},{name:"Basic (Merdeka Promo) | Sunsteel Kem Sdn Bhd",month:"Aug 2025",stage:"Lost",status:"lost",amount:4325}]},
+      {src:"WhatsApp", total:2, won:1, lost:1, inprog:0, wonAmt:3788, deals:[{name:"Sin Ban Huat Meat | ATC Acc Plus",month:"Jul 2025",stage:"Lost",status:"lost",amount:0},{name:"SBS Blast and Painting | ATC Acc Plus + appAccess",month:"Aug 2025",stage:"Won",status:"won",amount:3788}]},
+      {src:"Advertisement", total:1, won:1, lost:0, inprog:0, wonAmt:4749, deals:[{name:"Yuan Woh Sauce Factory | ATC Account Plus 1 User",month:"Jul 2025",stage:"Won",status:"won",amount:4749}]},
+      {src:"Principal", total:1, won:0, lost:1, inprog:0, wonAmt:0, deals:[{name:"WK Goh & Co. | Accountant Set",month:"Aug 2025",stage:"Lost",status:"lost",amount:2300}]}
+    ]
+  },
+  '2025-q4': {
+    label: "Q4 2025 (Oct–Dec)", subtitle: "107 deals",
+    insight: "<strong>107 AutoCount deals, 29 won (27.1% won rate)</strong>, RM 155,075 won value. <em>New Sales team · AutoCount product only (converted-lead basis, excl. BrioHR).</em> Highest volume: <strong>Website Visitors</strong> (36 deals). Best converting (≥8 deals): <strong>Web Forms</strong> (42%). ",
+    rows: [
+      {src:"Website Visitors", total:36, won:9, lost:24, inprog:3, wonAmt:32145, deals:[{name:"Emperial Corporate Strategies | Accountant",month:"Oct 2025",stage:"Lost",status:"lost",amount:0},{name:"Chiyoda Integre (J) Sdn Bhd | AutoCount",month:"Oct 2025",stage:"Lost",status:"lost",amount:0},{name:"HL Management Co | ATC Basic 5U + Asset Register",month:"Oct 2025",stage:"Lost",status:"lost",amount:26634},{name:"Voyserra Vacation Sdn Bhd",month:"Oct 2025",stage:"Won",status:"won",amount:5055},{name:"Asia Pacific Realty | ATC Acc Plus",month:"Oct 2025",stage:"Negotiation",status:"open",amount:3685},{name:"Basic | Shifen Holding Sdn Bhd",month:"Oct 2025",stage:"Lost",status:"lost",amount:7160},{name:"raudhatul ulum edu | Autocount Basic",month:"Oct 2025",stage:"Lost",status:"lost",amount:3985},{name:"Gill | AutoCount Accounting",month:"Oct 2025",stage:"Lost",status:"lost",amount:4500},{name:"1.9-2.2 Basic + App Access | Ansson Hardware Sdn Bhd",month:"Oct 2025",stage:"Lost",status:"lost",amount:3915},{name:"Anticimex | HRDC | ATC Upgrade to Pro + Retraining",month:"Oct 2025",stage:"This Week",status:"open",amount:16000},{name:"Support | Heritage Whisky",month:"Oct 2025",stage:"Won",status:"won",amount:600},{name:"ATC + Payroll | Key Master Enterprise",month:"Oct 2025",stage:"Lost",status:"lost",amount:3250},{name:"Rokonma | ATC Production Order",month:"Oct 2025",stage:"Lost",status:"lost",amount:0},{name:"Basic + Sitegiant Plugin | Rain Ayur Sdn Bhd",month:"Oct 2025",stage:"Lost",status:"lost",amount:6000},{name:"NMKAY Holdings Sdn Bhd | AutoCount Cloud Accounting 15 Users",month:"Oct 2025",stage:"Lost",status:"lost",amount:0},{name:"Brownfield Engineering | ATC training (stock)",month:"Nov 2025",stage:"Lost",status:"lost",amount:600},{name:"Le Meat House | POS FnB",month:"Nov 2025",stage:"Lost",status:"lost",amount:5447},{name:"Prim Light Sdn Bhd | Cloud Server for Hosting 8GB RAM",month:"Nov 2025",stage:"Lost",status:"lost",amount:5580},{name:"ESC | Bank Giro Plugin",month:"Nov 2025",stage:"Negotiation",status:"open",amount:2980},{name:"Satu Muhibbah Resources | AutoCount Accounting",month:"Nov 2025",stage:"Won",status:"won",amount:2150},{name:"1.9-2.2 Upgrade | Ansheng Enterprise",month:"Nov 2025",stage:"Won",status:"won",amount:2180},{name:"10 Infinity Sdn Bhd | ATC Sales Comm Report Plugin",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"Mohd Shukri | AutoCount Accounting and POS customisation",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"Express | Seed4Future",month:"Nov 2025",stage:"Lost",status:"lost",amount:3000},{name:"Nazren Medical and Healthcare | AutoCount Basic 3U + eInv 1 Co",month:"Nov 2025",stage:"Lost",status:"lost",amount:20230},{name:"Baisc + Plugin | Edna Group Sdn Bhd",month:"Nov 2025",stage:"Lost",status:"lost",amount:6095},{name:"Alwin Resources | ATC Account plus",month:"Nov 2025",stage:"Won",status:"won",amount:2300},{name:"Solesor Kampong Beach Resort | ATC Basic Training",month:"Nov 2025",stage:"Won",status:"won",amount:1450},{name:"Finest Advisory Sdn Bhd | ATC Acc Plus 1U + eInv 1 Co",month:"Nov 2025",stage:"Lost",status:"lost",amount:3235},{name:"TNT Communications | ATC Acc Plus",month:"Dec 2025",stage:"Lost",status:"lost",amount:0},{name:"JMB Pangsapuri Andorra | Autocount BSM",month:"Dec 2025",stage:"Lost",status:"lost",amount:5000},{name:"ATC Account Plus 2 Users | Maxwell Metal Surface",month:"Dec 2025",stage:"Won",status:"won",amount:3000},{name:"Accountplus | VVC Optometrist Johor",month:"Dec 2025",stage:"Lost",status:"lost",amount:1800},{name:"Xilnex POS | Imay Pharmacy",month:"Dec 2025",stage:"Lost",status:"lost",amount:6776},{name:"Big Idea Advertising & Design | ATC Basic + Customization + 3 AppAccess",month:"Dec 2025",stage:"Won",status:"won",amount:13980},{name:"Asia Ceramic | Yearly Support Basic Edition 3 Users",month:"Dec 2025",stage:"Won",status:"won",amount:1430}]},
+      {src:"Facebook", total:33, won:4, lost:28, inprog:1, wonAmt:35070, deals:[{name:"LK Seven Super Mart Sdn Bhd",month:"Oct 2025",stage:"Lost",status:"lost",amount:0},{name:"Starlife F&B | ATC POS",month:"Oct 2025",stage:"Lost",status:"lost",amount:8642},{name:"Premium + 3 User | SKy Blue",month:"Oct 2025",stage:"Lost",status:"lost",amount:10000},{name:"Putra Food Industries Sdn Bhd",month:"Oct 2025",stage:"Lost",status:"lost",amount:0},{name:"Restoran Cempaka Tomyam | POS Unit for 1",month:"Oct 2025",stage:"Lost",status:"lost",amount:3200},{name:"WL Living Concept Resources",month:"Oct 2025",stage:"Lost",status:"lost",amount:0},{name:"Escapade Boutique | ATC POS + Hardware",month:"Oct 2025",stage:"Won",status:"won",amount:9869},{name:"Express Plus | Ruchi bhojanam",month:"Nov 2025",stage:"Lost",status:"lost",amount:2500},{name:"Sri Kassim | ATC POS",month:"Nov 2025",stage:"Won",status:"won",amount:9771},{name:"Basic | Wai choy",month:"Nov 2025",stage:"Lost",status:"lost",amount:2187},{name:"2 POS + Pro | MMIS Trading",month:"Nov 2025",stage:"Lost",status:"lost",amount:10000},{name:"Warung Pak Burn | ATC POS",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"ATC Premium | Gamat Emas Sdn Bhd",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"Sahnur Lanskap | Cloud Accounting Lite",month:"Nov 2025",stage:"Lost",status:"lost",amount:1840},{name:"V.S. Varusai Ibrahim & Co | ATC POS",month:"Nov 2025",stage:"Lost",status:"lost",amount:6000},{name:"Archery Albidayah Wan Nihayah | ATC POS x2",month:"Nov 2025",stage:"Demo",status:"open",amount:8560},{name:"M.I.R.A Engineering | Autocount Account Plus",month:"Nov 2025",stage:"Lost",status:"lost",amount:4200},{name:"Sunset Meadow | Autocount POS",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"DD VetCare & Surgery | ATC Basic Edition 2 Users",month:"Nov 2025",stage:"Lost",status:"lost",amount:7075},{name:"POS F&B | Hock Wong Foodstuff Sdn Bhd",month:"Nov 2025",stage:"Lost",status:"lost",amount:10000},{name:"OTT Import Export Fresh | ATC Premium 2 Users + POS Basic",month:"Nov 2025",stage:"Won",status:"won",amount:10030},{name:"Vinstella Jewellery | Pipedrive CRM",month:"Dec 2025",stage:"Lost",status:"lost",amount:0},{name:"Rotikitab | ATC POS FnB eInv 1 Terminal",month:"Dec 2025",stage:"Lost",status:"lost",amount:0},{name:"Happy Tail Wonderland | ATC POS",month:"Dec 2025",stage:"Lost",status:"lost",amount:4780},{name:"MK & K Resources Sdn Bhd",month:"Dec 2025",stage:"Lost",status:"lost",amount:0},{name:"Basic | Tanoshi Travel & Tour",month:"Dec 2025",stage:"Won",status:"won",amount:5400},{name:"Top Phone | ATC Palm POS",month:"Dec 2025",stage:"Lost",status:"lost",amount:888},{name:"Payroll 10 Hc | Brew Beauty",month:"Dec 2025",stage:"Lost",status:"lost",amount:1839},{name:"Made Into Design Sdn Bhd",month:"Dec 2025",stage:"Lost",status:"lost",amount:0},{name:"Account Plus | Basic Depth Sdn Bhd",month:"Dec 2025",stage:"Lost",status:"lost",amount:2000},{name:"Basic + Pos | Bestbuy Super Stores Sdn Bhd",month:"Dec 2025",stage:"Lost",status:"lost",amount:13000},{name:"DBA Agro | ATC POS + Hardware",month:"Dec 2025",stage:"Lost",status:"lost",amount:8067},{name:"K.Na Tomyam",month:"Dec 2025",stage:"Lost",status:"lost",amount:0}]},
+      {src:"Web Forms", total:12, won:5, lost:5, inprog:2, wonAmt:65636, deals:[{name:"En Iskandar | ATC Accounting",month:"Oct 2025",stage:"Won",status:"won",amount:1700},{name:"TUTAMEN (MALAYSIA) | ATC Basic",month:"Oct 2025",stage:"Negotiation",status:"open",amount:8068},{name:"Agensi Pekerjaan EIFEL Sdn Bhd",month:"Oct 2025",stage:"Lost",status:"lost",amount:3015},{name:"ATC Pre10U + Sql runtime + AppAccess4U + eInv2Co | Clean Living",month:"Oct 2025",stage:"Won",status:"won",amount:46500},{name:"Deplus Design | Autocount Accounting & payroll",month:"Oct 2025",stage:"Won",status:"won",amount:12411},{name:"Binakon Sdn Bhd | ATC Cloud / Integration",month:"Oct 2025",stage:"Lost",status:"lost",amount:20000},{name:"App Access | Kokos Sdn Bhd",month:"Oct 2025",stage:"Lost",status:"lost",amount:900},{name:"Henglass | ATC Premium + Customization",month:"Nov 2025",stage:"Demo",status:"open",amount:0},{name:"H-Point Pharmacy | ATC Basic 14 Users + Advanced Multi UOM",month:"Nov 2025",stage:"Won",status:"won",amount:2675},{name:"Sales Hero B2C 10U | Stephen Handford",month:"Dec 2025",stage:"Lost",status:"lost",amount:26775},{name:"Basic + E-inv | Jernih Sewerage",month:"Dec 2025",stage:"Won",status:"won",amount:2350},{name:"ATC Cloud Accounting Professional 2 Years | Spectrum Integrated Technologies",month:"Dec 2025",stage:"Lost",status:"lost",amount:3030}]},
+      {src:"Webinar", total:10, won:4, lost:5, inprog:1, wonAmt:2130, deals:[{name:"IMPREX SOLUTIONS | Additional Module",month:"Oct 2025",stage:"Won",status:"won",amount:600},{name:"ROKONMA (M) | ATC Bank Recon",month:"Oct 2025",stage:"High Chances",status:"open",amount:0},{name:"Virtual Network Solutions | Bank Giro",month:"Oct 2025",stage:"Lost",status:"lost",amount:4000},{name:"KAZ AKITEK | ATC V2 Upg + eInv",month:"Nov 2025",stage:"Won",status:"won",amount:1030},{name:"E-inv Online Training | Newest Megane (M) Sdn Bhd",month:"Nov 2025",stage:"Won",status:"won",amount:250},{name:"Homestar Manufacturing | ATC Fixed Asset Plugin",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"Asset Management Resources | ATC Asset Register Plugin",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"Fabulous Sunview | ATC Bank Recon",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"Perunding Maju Setia Sdn Bhd",month:"Dec 2025",stage:"Won",status:"won",amount:250},{name:"Questech scientific sdn bhd",month:"Dec 2025",stage:"Lost",status:"lost",amount:13000}]},
+      {src:"Trade Show", total:6, won:2, lost:4, inprog:0, wonAmt:4960, deals:[{name:"Fire Bender Import and Export Sdn Bhd | ATC Stock Solution",month:"Oct 2025",stage:"Lost",status:"lost",amount:25300},{name:"Delphina Technik | ATC Basic v2 Upg + eInv 2 Co",month:"Oct 2025",stage:"Won",status:"won",amount:4710},{name:"Comcentric Solutions | Autocount Payroll",month:"Oct 2025",stage:"Lost",status:"lost",amount:1720},{name:"SMF Steelmakers | E-invoice Training",month:"Nov 2025",stage:"Won",status:"won",amount:250},{name:"Camps & Apparels Corp | ATC Cloud Payroll + Time Attendance",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"Skitech Solutions | ATC Demo",month:"Nov 2025",stage:"Lost",status:"lost",amount:4450}]},
+      {src:"Google Adwords", total:4, won:0, lost:4, inprog:0, wonAmt:0, deals:[{name:"Trend Borneo Tours & Travel Sdn Bhd | ATC CA Demo",month:"Oct 2025",stage:"Lost",status:"lost",amount:1870},{name:"Elim Medicare | AutoCount POS Basic",month:"Oct 2025",stage:"Lost",status:"lost",amount:3000},{name:"ATC Basic 2U + eInv 1Co | IK Management Consultant",month:"Nov 2025",stage:"Lost",status:"lost",amount:9050},{name:"Accountplus | E & H Electrical Sdn Bhd",month:"Dec 2025",stage:"Lost",status:"lost",amount:2000}]},
+      {src:"External Referral", total:3, won:2, lost:1, inprog:0, wonAmt:6400, deals:[{name:"KB Jaya Enterprise | ATC Basic Edition 3 Users",month:"Oct 2025",stage:"Lost",status:"lost",amount:4100},{name:"ATC Basic | Run A Production Sdn Bhd",month:"Dec 2025",stage:"Won",status:"won",amount:4200},{name:"Rendang Engineering & Services",month:"Dec 2025",stage:"Won",status:"won",amount:2200}]},
+      {src:"Lead Magnet", total:1, won:1, lost:0, inprog:0, wonAmt:2750, deals:[{name:"Agathae Business | ATC Acc Plus 1U",month:"Dec 2025",stage:"Won",status:"won",amount:2750}]},
+      {src:"Employee Referral", total:1, won:1, lost:0, inprog:0, wonAmt:3814, deals:[{name:"Palm Pos + Cloud Acc | One Every Fresh",month:"Dec 2025",stage:"Won",status:"won",amount:3814}]},
+      {src:"Old Gold", total:1, won:1, lost:0, inprog:0, wonAmt:2170, deals:[{name:"ATC Cloud Accounting Basic 2 Years | Odi Engineering",month:"Dec 2025",stage:"Won",status:"won",amount:2170}]}
+    ]
+  },
+  '2025-h1': {
+    label: "H1 2025 (Jan–Jun)", subtitle: "218 deals",
+    insight: "<strong>218 AutoCount deals, 60 won (27.5% won rate)</strong>, RM 442,043 won value. <em>New Sales team · AutoCount product only (converted-lead basis, excl. BrioHR).</em> Highest volume: <strong>Website Visitors</strong> (47 deals). Best converting (≥8 deals): <strong>Old Gold</strong> (50%). ",
+    rows: [
+      {src:"Website Visitors", total:47, won:20, lost:25, inprog:2, wonAmt:113116, deals:[{name:"Sunny Spot | Account Plus + e-invoice 1C",month:"Jan 2025",stage:"Won",status:"won",amount:4040},{name:"Sharaa Consultancy | Account Plus + e-invoice 1C",month:"Jan 2025",stage:"Won",status:"won",amount:1950},{name:"HLL Management | e-invoice 3 Companies",month:"Jan 2025",stage:"Lost",status:"lost",amount:4585},{name:"Norvic Corporate Services | ATC eInv / Cloud Accounting",month:"Jan 2025",stage:"Lost",status:"lost",amount:0},{name:"Empayar Holding Enterprise | Training",month:"Jan 2025",stage:"Won",status:"won",amount:2570},{name:"Ramusa Engineering Sdn Bhd",month:"Feb 2025",stage:"Lost",status:"lost",amount:0},{name:"DTEQ Asia Pacific | ATC Acc Plus 1U + eInv 1 Co",month:"Feb 2025",stage:"Won",status:"won",amount:2650},{name:"Feng Yuan Furniture | ATC Basic 3U + eInv 1 Co",month:"Feb 2025",stage:"Lost",status:"lost",amount:7770},{name:"PPW VENTURES | ATC Upg 2U + eInv 1Co",month:"Feb 2025",stage:"Won",status:"won",amount:3540},{name:"Kaolin (Malaysia) | AutoCount Cloud Payroll 60HC",month:"Feb 2025",stage:"Won",status:"won",amount:1840},{name:"E-inv 1.9-2.2 | SYARIKAT KONG NGEE",month:"Feb 2025",stage:"Lost",status:"lost",amount:5185},{name:"Kenjo | ATC Basic 3U + POS + eInv 1 Co + appAccess",month:"Feb 2025",stage:"Lost",status:"lost",amount:35379},{name:"Atc | Acten FH Tire",month:"Mar 2025",stage:"Lost",status:"lost",amount:3100},{name:"Nana | ATC | e-invoicing",month:"Mar 2025",stage:"Negotiation",status:"open",amount:0},{name:"Miss Fa | ATC Account Plus + E-inv",month:"Mar 2025",stage:"Won",status:"won",amount:2535},{name:"Alat-Alat Ganti Hock Leong | AutoCount Demo",month:"Mar 2025",stage:"Lost",status:"lost",amount:3785},{name:"Megah Utama Shipping | AutoCount",month:"Apr 2025",stage:"Lost",status:"lost",amount:10000},{name:"[Grant]MC Mitra | ATC Cloud Accounting 5yr",month:"Apr 2025",stage:"Won",status:"won",amount:8410},{name:"Perbadanan Pengurusan Pangsapuri Mutiara | Account plus",month:"Apr 2025",stage:"Won",status:"won",amount:2300},{name:"PTS Food Distribution | ATC SQL Runtime License 23U",month:"Apr 2025",stage:"Won",status:"won",amount:18400},{name:"TG Lighting | ATC POS Std",month:"Apr 2025",stage:"Lost",status:"lost",amount:6304},{name:"Midec Wood | ATC Acc Plus + eInv + Customization",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"Restoran Nasi Kandar Melotop | POS System",month:"Apr 2025",stage:"Won",status:"won",amount:9880},{name:"Friendbond Corporate Advisory | AutoCount Accountant Set",month:"Apr 2025",stage:"Won",status:"won",amount:8620},{name:"Maxpro Chemical | ATC Acc Plus",month:"Apr 2025",stage:"Won",status:"won",amount:2985},{name:"Veygah Chem Trading | ATC Acc Plus Demo",month:"Apr 2025",stage:"Lost",status:"lost",amount:3880},{name:"Kinsen Home | ATC solutioning / WMS",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"Basic + Item matrix | BBV Classic Sdn Bhd",month:"Apr 2025",stage:"Lost",status:"lost",amount:3000},{name:"N&G Management Services Sdn Bhd",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"Training | I&E Converge Sdn Bhd",month:"Apr 2025",stage:"Won",status:"won",amount:650},{name:"Accountplus | MrTew | Perniagaan sri setiajaya",month:"Apr 2025",stage:"Lost",status:"lost",amount:2800},{name:"Chinnyi Gold Gifts | ATC Acc Plus 2U + eInv 1 Co + AppAccess",month:"May 2025",stage:"Won",status:"won",amount:4635},{name:"Erawan Security | ATC Acc Plus",month:"May 2025",stage:"Won",status:"won",amount:3100},{name:"BUNGA RAYA FLORA NURSERY | ATC Acc Plus",month:"May 2025",stage:"Demo",status:"open",amount:0},{name:"Ken Khor | ATC PalmPOS",month:"May 2025",stage:"Won",status:"won",amount:1138},{name:"Wegrow Global | POS Standard",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"SP William | ATC Acc Plus 1U + eInv 6 Co",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"Above Creative Events | ATC Acc Plus 4U",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"Sri Maju Logistik | ATC CA Basic",month:"May 2025",stage:"Lost",status:"lost",amount:600},{name:"E-inv | Hydrojuta Kinetics Sdn Bhd",month:"Jun 2025",stage:"Lost",status:"lost",amount:7325},{name:"E-inv | KIAN GIAP INTERIOR",month:"Jun 2025",stage:"Won",status:"won",amount:4588},{name:"Rascotec | Integration with FOCUS",month:"Jun 2025",stage:"Lost",status:"lost",amount:54880},{name:"Affinity Consulting Engineers | ATC Acc Plus 1U + eInv",month:"Jun 2025",stage:"Won",status:"won",amount:3885},{name:"RFS Hydraulics Sdn Bhd | SQL Runtime license 22 Users",month:"Jun 2025",stage:"Lost",status:"lost",amount:17950},{name:"BE Automation | Autocount Account Plus",month:"Jun 2025",stage:"Lost",status:"lost",amount:2740},{name:"HRDC | DML Alu | ATC Pre 6U + SN + eInv 2 Co",month:"Jun 2025",stage:"Won",status:"won",amount:25400},{name:"ARAF MAJU | Grant ATC Accounting + POS",month:"Jun 2025",stage:"Lost",status:"lost",amount:6000}]},
+      {src:"Webinar", total:44, won:10, lost:29, inprog:5, wonAmt:41389, deals:[{name:"L & L Stationery | ATC Pro 5U v2 upg + eInv 1 Co",month:"Jan 2025",stage:"Won",status:"won",amount:2995},{name:"Sastronic | V2 upgrade + e-invoicing 4C",month:"Jan 2025",stage:"Won",status:"won",amount:10220},{name:"Ideas Policy Research Berhad | ATC Accounting + e-inv",month:"Jan 2025",stage:"Lost",status:"lost",amount:0},{name:"E-inv | INDELFE",month:"Jan 2025",stage:"Lost",status:"lost",amount:5040},{name:"TT FISH MART | ATC e-Inv",month:"Jan 2025",stage:"Demo",status:"open",amount:0},{name:"Kinetrol Asia | ATC Premium eInv 1 Co",month:"Jan 2025",stage:"Won",status:"won",amount:2000},{name:"Tai Seng Tyres Trading Sdn Bhd",month:"Jan 2025",stage:"Demo",status:"open",amount:1330},{name:"Litt Tatt | Report Customization",month:"Feb 2025",stage:"Lost",status:"lost",amount:0},{name:"Jesmm Manufacture | ATC Account Plus",month:"Feb 2025",stage:"Lost",status:"lost",amount:3140},{name:"Fashionhomez | Cloud Accounting Lite 1 User",month:"Feb 2025",stage:"Won",status:"won",amount:1140},{name:"B&J Computer Services | Account plus",month:"Feb 2025",stage:"Lost",status:"lost",amount:3138},{name:"TKTC enterprise | ATC Cloud Accounting Lite 2 Years",month:"Feb 2025",stage:"Lost",status:"lost",amount:1690},{name:"Crossroad Publication | Cloud Accounting",month:"Feb 2025",stage:"Lost",status:"lost",amount:0},{name:"STD Vision | ATC & E-Inv Online Demo",month:"Feb 2025",stage:"Lost",status:"lost",amount:0},{name:"Ks Liong | e-invoicing",month:"Feb 2025",stage:"Leads",status:"open",amount:0},{name:"Account plus | Baba seafood",month:"Feb 2025",stage:"Won",status:"won",amount:4525},{name:"E-inv | Insplace Trading",month:"Feb 2025",stage:"Lost",status:"lost",amount:0},{name:"Multigrowth Plus Sdn Bhd",month:"Feb 2025",stage:"Negotiation",status:"open",amount:10000},{name:"Wan Ling Tan | e-invoicing",month:"Feb 2025",stage:"Lost",status:"lost",amount:0},{name:"Atc | PGH MANAGEMENT CONSULTANCY & SERVICES",month:"Feb 2025",stage:"Lost",status:"lost",amount:3065},{name:"Zealtechnic Solution Sdn Bhd | V2 upgrade + e-inv",month:"Feb 2025",stage:"Lost",status:"lost",amount:4060},{name:"Koh Motor | ATC Acc Plus + eInv",month:"Feb 2025",stage:"Lost",status:"lost",amount:2890},{name:"Ubs - atc | KY computer",month:"Feb 2025",stage:"Lost",status:"lost",amount:0},{name:"Mrs Chin Freelance | ATC Cloud Accounting",month:"Feb 2025",stage:"Lost",status:"lost",amount:1330},{name:"ATC | O'rec Sdn Bhd",month:"Feb 2025",stage:"Won",status:"won",amount:4275},{name:"RB & Co | ATC e-invoicing",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"E-inv | Setia Hospimart",month:"Mar 2025",stage:"Lost",status:"lost",amount:3150},{name:"E-inv | SIMHAN",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"Annie Yong | ATC e-inv",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"C.N Chan Management Services | ATC + BMS",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"SelectPack Technology (SE Asia) Sdn Bhd",month:"Mar 2025",stage:"Won",status:"won",amount:2740},{name:"Cloud E-inv Training | CJM One Stop Enterprise",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"1.9-2.2 + API | SBT SOFTWARE CONSULTING SDN BHD",month:"Apr 2025",stage:"Lost",status:"lost",amount:5000},{name:"Sincere Equipment Sdn Bhd",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"My digital media | AutoCount cloud accounting",month:"Apr 2025",stage:"Demo",status:"open",amount:0},{name:"Cloud Accounting | Sledgehammer",month:"Apr 2025",stage:"Won",status:"won",amount:3474},{name:"Account Plus | VL APPAREL",month:"May 2025",stage:"Lost",status:"lost",amount:2965},{name:"Ms Teng | ATC V2 Upg / ATC CA",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"MAJU HANDICRAFT SDN BHD",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"PAN CONTINENTAL | ATC Basic",month:"May 2025",stage:"Lost",status:"lost",amount:4130},{name:"YOU FOONG SERVICE",month:"Jun 2025",stage:"Lost",status:"lost",amount:1200},{name:"M SALIM Curtain PLT | ATC DEMO",month:"Jun 2025",stage:"Lost",status:"lost",amount:0},{name:"Stenergy Medical Supplies | ATC Pro 1U",month:"Jun 2025",stage:"Won",status:"won",amount:7280},{name:"Wiz Management | PELICAN ENT",month:"Jun 2025",stage:"Won",status:"won",amount:2740}]},
+      {src:"Google Adwords", total:28, won:8, lost:17, inprog:3, wonAmt:53864, deals:[{name:"Multi Effort (M) Sdn Bhd",month:"Mar 2025",stage:"Lost",status:"lost",amount:3050},{name:"Today Bakeries Products (Klang) | ATC Pre 3U + eInv 1 Co",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"Atc | Rizqi Appliances Enterprise",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"Account Plus | SEA VILLAGE RESTORAN",month:"Apr 2025",stage:"Lost",status:"lost",amount:3066},{name:"Nedun Janagi Enterprise | ATC Account Plus",month:"Apr 2025",stage:"Lost",status:"lost",amount:3185},{name:"LIEW LIK YI | E-inv",month:"Apr 2025",stage:"Quotation",status:"open",amount:0},{name:"Chando (Malaysia) Sdn Bhd | Looking for Site Giant link",month:"Apr 2025",stage:"Lost",status:"lost",amount:7580},{name:"Aush Milby | AutoCount Account Plus + 1 EINV",month:"Apr 2025",stage:"Won",status:"won",amount:2085},{name:"Account plus | TSC Green",month:"Apr 2025",stage:"Lost",status:"lost",amount:2000},{name:"I Tiara Production Sdn Bhd | Account Plus",month:"Apr 2025",stage:"Lost",status:"lost",amount:2717},{name:"LCM Maha Energy | ATC Pro + AppAccess 1 User",month:"Apr 2025",stage:"Won",status:"won",amount:6900},{name:"U & I Production House (M) Sdn Bhd",month:"May 2025",stage:"Lost",status:"lost",amount:3385},{name:"Pekan Ilmu Publications | ATC Accounting Basic",month:"May 2025",stage:"Lost",status:"lost",amount:5230},{name:"Force Car Turbo Service",month:"May 2025",stage:"Lost",status:"lost",amount:2140},{name:"Chop Wah Hin",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"Yee Sern Hardware | V2 upgrade + e-inv",month:"May 2025",stage:"Quotation",status:"open",amount:3457},{name:"MHL Global Trading | ATC POS Basic",month:"May 2025",stage:"Won",status:"won",amount:3500},{name:"Heng Leong Toys Center | ATC POS Standard + Hardware",month:"May 2025",stage:"Lost",status:"lost",amount:12389},{name:"POS + Basic | Yumi Bakery",month:"Jun 2025",stage:"Won",status:"won",amount:26749},{name:"Accountant set | X Consultancy Group",month:"Jun 2025",stage:"Lost",status:"lost",amount:3150},{name:"KS Brothers Metal Trading | ATC ACC PLUS",month:"Jun 2025",stage:"Lost",status:"lost",amount:3135},{name:"Pusat Bahasa Aspen | ATC Cloud Accounting Basic Edition",month:"Jun 2025",stage:"Won",status:"won",amount:1920},{name:"A6 Engineering Enterprise | ATC Demo",month:"Jun 2025",stage:"Lost",status:"lost",amount:0},{name:"Gear Master Empire | Express Plus 1 User + einv 1C",month:"Jun 2025",stage:"Won",status:"won",amount:2650},{name:"SpaceItOut Interior Design | ATC Acc Plus + eInv",month:"Jun 2025",stage:"Demo",status:"open",amount:3385},{name:"Pusat Pendidikan Al Hikmah | ATC Basic 4 users",month:"Jun 2025",stage:"Won",status:"won",amount:9280},{name:"J Velu Enterprise",month:"Jun 2025",stage:"Lost",status:"lost",amount:6000},{name:"ONG IT & COMPUTER MISSION",month:"Jun 2025",stage:"Won",status:"won",amount:780}]},
+      {src:"External Referral", total:23, won:6, lost:17, inprog:0, wonAmt:165523, deals:[{name:"Bonding Technology Resources (Chemibond) | ATC Pre 10U + eInv 2 Co",month:"Jan 2025",stage:"Won",status:"won",amount:45228},{name:"Qasih Global Sdn Bhd | ATC Accounting + e-inv",month:"Jan 2025",stage:"Lost",status:"lost",amount:3140},{name:"Loara Sdn Bhd | ATC Accounting basic",month:"Jan 2025",stage:"Lost",status:"lost",amount:5835},{name:"TIN Transport Trading | ATC Acc Plus + eInv 2Co",month:"Feb 2025",stage:"Lost",status:"lost",amount:0},{name:"ATC Plus | Effective Virtual Resources Sdn Bhd",month:"Feb 2025",stage:"Lost",status:"lost",amount:2965},{name:"Tee & Chua | ATC POS Branch add 2 Units",month:"Feb 2025",stage:"Won",status:"won",amount:5500},{name:"Sharwin Foam | ATC V2 Upg 3U + eInv 1Co",month:"Mar 2025",stage:"Won",status:"won",amount:5950},{name:"Ella Fesyen",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"Kovann Mirror | ATC Premium 5U + Customization",month:"Mar 2025",stage:"Won",status:"won",amount:105000},{name:"IEM Resources | ATC Exp Plus",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"Amy | Upgrade to V2",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"1.9-2.2 Express + 1 Com E-inv | Perniagaan Mesin",month:"Apr 2025",stage:"Won",status:"won",amount:1705},{name:"Sato One Stop (SMY) | ATC Accounting Basic",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"Teguh Sarjana Global Resources | ATC Acc Plus",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"DNKS Corporation | Access UBS AB + eInv training",month:"May 2025",stage:"Lost",status:"lost",amount:4157},{name:"Ribuan Positif | AutoCount Acc Plus / Cloud Accounting",month:"May 2025",stage:"Lost",status:"lost",amount:3385},{name:"WELIGHT TRADING | ATC Exp Plus",month:"May 2025",stage:"Lost",status:"lost",amount:3450},{name:"D&A ELECTRICAL AND ELECTRONIC",month:"May 2025",stage:"Won",status:"won",amount:2140},{name:"Tabib Perubatan Sendi - Sendi Tulang",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"LSK Auto Enterprise",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"E-inv Demo | GC Express Logistics Sdn Bhd",month:"Jun 2025",stage:"Lost",status:"lost",amount:5220},{name:"Referred by Ray | United Johnco | ATC Basic 1U + eInv 2 Co",month:"Jun 2025",stage:"Lost",status:"lost",amount:0},{name:"Starch Trade Sdn Bhd",month:"Jun 2025",stage:"Lost",status:"lost",amount:1}]},
+      {src:"Lead Magnet", total:15, won:1, lost:12, inprog:2, wonAmt:1910, deals:[{name:"Tech Forge | ATC + eInv",month:"Jan 2025",stage:"Lost",status:"lost",amount:0},{name:"CLC Metal Works | ATC Acc Plus V2.2 + eInv",month:"Jan 2025",stage:"Lost",status:"lost",amount:3140},{name:"Ash29 Enterprise | ATC Account Plus",month:"Jan 2025",stage:"Leads",status:"open",amount:3140},{name:"EVMS Management Consultants | ATC Accounting",month:"Jan 2025",stage:"Lost",status:"lost",amount:0},{name:"Smart Excellence Enterprise | ATC Cloud Accounting Lite",month:"Jan 2025",stage:"Negotiation",status:"open",amount:1440},{name:"Lumi Marketing | ATC On-site Demo",month:"Feb 2025",stage:"Lost",status:"lost",amount:4136},{name:"ABX (Global Express) | Autocount Support",month:"Feb 2025",stage:"Won",status:"won",amount:1910},{name:"KSMT | ATC Acc Plus",month:"Mar 2025",stage:"Lost",status:"lost",amount:3185},{name:"Excel Glow sdn Bhd",month:"Apr 2025",stage:"Lost",status:"lost",amount:3085},{name:"POS Branch | World Frozen Food Sdn Bhd",month:"May 2025",stage:"Lost",status:"lost",amount:3650},{name:"DAYA ANGSANA | ATC Demo",month:"May 2025",stage:"Lost",status:"lost",amount:3235},{name:"ZULDA MASRI FASHION",month:"May 2025",stage:"Lost",status:"lost",amount:7149},{name:"Satu Hati Travel & Tours Sdn Bhd",month:"Jun 2025",stage:"Lost",status:"lost",amount:1430},{name:"KCAF MAREKTING | ATC Exp Plus",month:"Jun 2025",stage:"Lost",status:"lost",amount:0},{name:"HOREM TRDG | ATC POS Basic",month:"Jun 2025",stage:"Lost",status:"lost",amount:4200}]},
+      {src:"Facebook", total:12, won:2, lost:8, inprog:2, wonAmt:21639, deals:[{name:"Mandeep Singh | ATC Online Demo",month:"Jan 2025",stage:"Lost",status:"lost",amount:0},{name:"cCloud Accounting | Mykrishna Empire",month:"Jan 2025",stage:"Lost",status:"lost",amount:3560},{name:"Sharon | Account Plus + Unlimited Accountbook",month:"Jan 2025",stage:"Worst Case",status:"open",amount:6830},{name:"SIN YEW SENG | ATC Accounting + e-inv",month:"Jan 2025",stage:"Lost",status:"lost",amount:0},{name:"Masjid Bukit Rahman Putra | ATC Basic 2U + eInv 1Co",month:"Jan 2025",stage:"Lost",status:"lost",amount:18710},{name:"Deto Engineering | ATC Basic + 1Co eInv",month:"Feb 2025",stage:"Lost",status:"lost",amount:6890},{name:"E-inv 2.0 (freelancer) | CL Wong",month:"Feb 2025",stage:"Won",status:"won",amount:2859},{name:"Pengeluaran Hasil Laut Endau | 1.9-2.2 E-inv upgrade",month:"Feb 2025",stage:"Lost",status:"lost",amount:2875},{name:"JT Agency | ATC Acc Plus 1U + eInv 3 Co",month:"Feb 2025",stage:"Lost",status:"lost",amount:4500},{name:"Jing Liang Hair Unisex And Beauty Saloon",month:"Feb 2025",stage:"Quotation",status:"open",amount:0},{name:"Kedai Ubat Wan Soon | ATC POS Basic",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"iFlexs | Basic Edition 3U + e-invoice 2C + VPS + AppAccess",month:"May 2025",stage:"Won",status:"won",amount:18780}]},
+      {src:"Live Chat", total:12, won:4, lost:8, inprog:0, wonAmt:19018, deals:[{name:"AV Manufacturing | Fingertec Face ID",month:"Mar 2025",stage:"Lost",status:"lost",amount:5100},{name:"Emstech Computer Centre ATC Basic Demo",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"KCA Energy | ATC Basic 3U + E-invoice 1C",month:"Mar 2025",stage:"Won",status:"won",amount:6880},{name:"Account plus + E-inv | TADIKA KEMBANG MINDA",month:"Apr 2025",stage:"Won",status:"won",amount:2788},{name:"Conique Sdn Bhd",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"BM Sport Bikers Accessories | ATC V2 Upgrade",month:"May 2025",stage:"Won",status:"won",amount:2670},{name:"Patentmall | ACA Basic",month:"May 2025",stage:"Lost",status:"lost",amount:1660},{name:"Bric Innovative | ATC Basic Upg + eInv",month:"May 2025",stage:"Won",status:"won",amount:6680},{name:"Aida, Rina & Associates | UBS AB 1U Reactivation",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"Negative Signature | ATC Accounting Basic",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"Precision Torque Tools | ATC Cloud Acc Plus",month:"Jun 2025",stage:"Lost",status:"lost",amount:0},{name:"Basic | Willeim Steel Engineering Sdn Bhd",month:"Jun 2025",stage:"Lost",status:"lost",amount:3000}]},
+      {src:"WhatsApp", total:9, won:1, lost:7, inprog:1, wonAmt:2551, deals:[{name:"ATC | Eagle Cabin",month:"Feb 2025",stage:"Lost",status:"lost",amount:2999},{name:"Nisha Florist | ATC Accounting Basic + 1 user",month:"Feb 2025",stage:"Lost",status:"lost",amount:6470},{name:"Pos fnb | NASI AYAM",month:"Apr 2025",stage:"Lost",status:"lost",amount:5461},{name:"PVB Trading",month:"Apr 2025",stage:"Won",status:"won",amount:2551},{name:"Harizan Rahman | Accountant set",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"Cheng Jie Precision Engineering",month:"Apr 2025",stage:"Demo",status:"open",amount:0},{name:"Ng Ah Tiam Trading | Acc Plus + ATC POS",month:"May 2025",stage:"Lost",status:"lost",amount:7000},{name:"Cargate Auto Enterprise | Upgrade v2 e-invoice",month:"Jun 2025",stage:"Lost",status:"lost",amount:1830},{name:"Plentong Lienhuat Building Materials | AutoCount e-Invoice",month:"Jun 2025",stage:"Lost",status:"lost",amount:8363}]},
+      {src:"Old Gold", total:8, won:4, lost:4, inprog:0, wonAmt:15670, deals:[{name:"LESLIE YAP & CO | ATC V2 Upg + eInv",month:"Feb 2025",stage:"Won",status:"won",amount:8570},{name:"E-inv + Support | CK Living Enterprise",month:"Feb 2025",stage:"Lost",status:"lost",amount:4000},{name:"Eunike Piano Lessons | AutoCount Cloud Accounting Lite",month:"Feb 2025",stage:"Won",status:"won",amount:720},{name:"Tuff Industries (M) Sdn Bhd",month:"Feb 2025",stage:"Lost",status:"lost",amount:4370},{name:"Ong Yik Chen | ATC Account Plus",month:"Mar 2025",stage:"Won",status:"won",amount:2050},{name:"IBS BUKU | ATC Acc Plus 1U eInv 1 Co",month:"Mar 2025",stage:"Lost",status:"lost",amount:6795},{name:"Hoffset Printing | ATC Basic eInv 1 Co + Training",month:"Apr 2025",stage:"Won",status:"won",amount:4330},{name:"Vision Tech Electrical Engineering Sdn Bhd",month:"May 2025",stage:"Lost",status:"lost",amount:2965}]},
+      {src:"Principal", total:7, won:1, lost:5, inprog:1, wonAmt:1665, deals:[{name:"Pyaroll | Hybrid Publication",month:"Jan 2025",stage:"Lost",status:"lost",amount:0},{name:"Atc Cloud | Ekoinvensi",month:"Jan 2025",stage:"Lost",status:"lost",amount:1805},{name:"Hadra Sdn Bhd | ATC Cloud Payroll",month:"Feb 2025",stage:"Lost",status:"lost",amount:1840},{name:"Accountplius | NBIT Technology",month:"Apr 2025",stage:"Lost",status:"lost",amount:1640},{name:"Ampang Gold Traders | POS",month:"May 2025",stage:"Quotation",status:"open",amount:4715},{name:"Reveillon Group | ATC Pro 5U + eInv 1 Co",month:"Jun 2025",stage:"Lost",status:"lost",amount:33229},{name:"SLC | ATC V2 Upgrade + eInv",month:"Jun 2025",stage:"Won",status:"won",amount:1665}]},
+      {src:"Web Forms", total:5, won:2, lost:3, inprog:0, wonAmt:3730, deals:[{name:"BML BUILDERS | AutoCount | Progressive billing",month:"Jan 2025",stage:"Lost",status:"lost",amount:0},{name:"Account plus | Luxx newhouse furniture",month:"Jan 2025",stage:"Lost",status:"lost",amount:4805},{name:"Spectrum Packaging Industries | ATC Premium 3U + eInv 4 Co",month:"Feb 2025",stage:"Lost",status:"lost",amount:23160},{name:"Waterjet Art Design | ATC Cloud Account Basic 2Y",month:"Apr 2025",stage:"Won",status:"won",amount:2120},{name:"Kosas Travel & Tours | ATC CA",month:"May 2025",stage:"Won",status:"won",amount:1610}]},
+      {src:"Advertisement", total:3, won:0, lost:1, inprog:2, wonAmt:0, deals:[{name:"MH NG Trading | ATC Basic + eInv",month:"Apr 2025",stage:"Lost",status:"lost",amount:4530},{name:"Perkayuan Tat Lee | ATC Basic",month:"May 2025",stage:"Negotiation",status:"open",amount:5230},{name:"Guew Mun Kam | Cloud Accounting",month:"May 2025",stage:"Demo",status:"open",amount:0}]},
+      {src:"Trade Show", total:1, won:0, lost:1, inprog:0, wonAmt:0, deals:[{name:"RBM | ATC Basic + einv + DM + Plugin",month:"Mar 2025",stage:"Lost",status:"lost",amount:0}]},
+      {src:"Zoho Bookings", total:1, won:0, lost:1, inprog:0, wonAmt:0, deals:[{name:"BeWell Pharmacy Puchong",month:"Apr 2025",stage:"Lost",status:"lost",amount:6432}]},
+      {src:"Missed Call", total:1, won:0, lost:1, inprog:0, wonAmt:0, deals:[{name:"YSM Seremban Distributor Sdn Bhd",month:"Apr 2025",stage:"Lost",status:"lost",amount:0}]},
+      {src:"Marketing Campaign", total:1, won:1, lost:0, inprog:0, wonAmt:1968, deals:[{name:"1.9-2.2 Account plus | Pang Siang Enterprise",month:"Apr 2025",stage:"Won",status:"won",amount:1968}]},
+      {src:"Employee Referral", total:1, won:0, lost:1, inprog:0, wonAmt:0, deals:[{name:"Aurum Paradisa | ATC Basic Cloud Accounting 2Y",month:"May 2025",stage:"Lost",status:"lost",amount:1320}]}
+    ]
+  },
+  '2025-h2': {
+    label: "H2 2025 (Jul–Dec)", subtitle: "177 deals",
+    insight: "<strong>177 AutoCount deals, 45 won (25.4% won rate)</strong>, RM 226,727 won value. <em>New Sales team · AutoCount product only (converted-lead basis, excl. BrioHR).</em> Highest volume: <strong>Facebook</strong> (60 deals). Best converting (≥8 deals): <strong>Web Forms</strong> (41%). ",
+    rows: [
+      {src:"Facebook", total:60, won:7, lost:47, inprog:6, wonAmt:57847, deals:[{name:"Cloud Account | Sree Kavin Success",month:"Jul 2025",stage:"Lost",status:"lost",amount:1840},{name:"Emphasis Media | ATC Payroll",month:"Jul 2025",stage:"Lost",status:"lost",amount:0},{name:"DT Multi Sdn Bhd",month:"Jul 2025",stage:"Won",status:"won",amount:250},{name:"Basic | Blaze Nail Beauty Sdn Bhd",month:"Jul 2025",stage:"Lost",status:"lost",amount:0},{name:"Siddieq Corner | ATC Acc Plus + POS",month:"Jul 2025",stage:"Quotation",status:"open",amount:0},{name:"Din | ATC Palm POS",month:"Jul 2025",stage:"Lost",status:"lost",amount:0},{name:"Nissa Global Sdn Bhd",month:"Jul 2025",stage:"Lost",status:"lost",amount:0},{name:"Avionics Wheels | ATC Exp Plus + Workshop + eInv 3 Co",month:"Jul 2025",stage:"Lost",status:"lost",amount:0},{name:"Accelutions Digital Technology | ATC Acc Plus",month:"Jul 2025",stage:"Lost",status:"lost",amount:2400},{name:"POS (Retail) | ABID KHOIR ENTERPRISE",month:"Aug 2025",stage:"Lost",status:"lost",amount:5000},{name:"D Saujana Catering | ATC Acct. Plus 1 User",month:"Aug 2025",stage:"Won",status:"won",amount:1700},{name:"IHK Welding | ATC POS (Kiosk)",month:"Aug 2025",stage:"Lost",status:"lost",amount:0},{name:"Terminal Restaurant and Bar | ATC POS Solution",month:"Aug 2025",stage:"Lost",status:"lost",amount:2400},{name:"Trevi 33 | ATC Cloud Accounting Plus 2Y",month:"Aug 2025",stage:"Demo",status:"open",amount:2290},{name:"Batik Sensation | ATC Pro 3U + Item Matrix",month:"Aug 2025",stage:"Demo",status:"open",amount:12830},{name:"1.9 - 2.2 | Big Day Marketing Sdn Bhd",month:"Aug 2025",stage:"Negotiation",status:"open",amount:3000},{name:"Tadika Genius Cerdik",month:"Aug 2025",stage:"Lost",status:"lost",amount:0},{name:"Basic | Ong Bundle",month:"Aug 2025",stage:"Lost",status:"lost",amount:5000},{name:"Bushra International | ATC CA Plus",month:"Aug 2025",stage:"Lost",status:"lost",amount:1900},{name:"Zulkefly | ATC Payroll",month:"Aug 2025",stage:"Lost",status:"lost",amount:1858},{name:"Kasatech Hardwares | ATC Basic 3 Users + Sitegiant + Cloud Payroll",month:"Sep 2025",stage:"Won",status:"won",amount:20827},{name:"PS3G Sdn Bhd | Autocount HRMS with e-attendance",month:"Sep 2025",stage:"Lost",status:"lost",amount:6798},{name:"POS Hardware | Riz",month:"Sep 2025",stage:"Lost",status:"lost",amount:2088},{name:"Basic | A&C Department store sdn bhd",month:"Sep 2025",stage:"Lost",status:"lost",amount:4500},{name:"ATC Cloud Accounting Plus 2Y | TMG Business Development",month:"Sep 2025",stage:"Negotiation",status:"open",amount:2440},{name:"PIDEZZA | Xilnex POS",month:"Sep 2025",stage:"Lost",status:"lost",amount:0},{name:"Pro + 14 User + Plugin | Spektra Bumimas Sdn Bhd",month:"Sep 2025",stage:"Lost",status:"lost",amount:25000},{name:"LK Seven Super Mart Sdn Bhd",month:"Oct 2025",stage:"Lost",status:"lost",amount:0},{name:"Starlife F&B | ATC POS",month:"Oct 2025",stage:"Lost",status:"lost",amount:8642},{name:"Premium + 3 User | SKy Blue",month:"Oct 2025",stage:"Lost",status:"lost",amount:10000},{name:"Putra Food Industries Sdn Bhd",month:"Oct 2025",stage:"Lost",status:"lost",amount:0},{name:"Restoran Cempaka Tomyam | POS Unit for 1",month:"Oct 2025",stage:"Lost",status:"lost",amount:3200},{name:"WL Living Concept Resources",month:"Oct 2025",stage:"Lost",status:"lost",amount:0},{name:"Escapade Boutique | ATC POS + Hardware",month:"Oct 2025",stage:"Won",status:"won",amount:9869},{name:"Express Plus | Ruchi bhojanam",month:"Nov 2025",stage:"Lost",status:"lost",amount:2500},{name:"Sri Kassim | ATC POS",month:"Nov 2025",stage:"Won",status:"won",amount:9771},{name:"Basic | Wai choy",month:"Nov 2025",stage:"Lost",status:"lost",amount:2187},{name:"2 POS + Pro | MMIS Trading",month:"Nov 2025",stage:"Lost",status:"lost",amount:10000},{name:"Warung Pak Burn | ATC POS",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"ATC Premium | Gamat Emas Sdn Bhd",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"Sahnur Lanskap | Cloud Accounting Lite",month:"Nov 2025",stage:"Lost",status:"lost",amount:1840},{name:"V.S. Varusai Ibrahim & Co | ATC POS",month:"Nov 2025",stage:"Lost",status:"lost",amount:6000},{name:"Archery Albidayah Wan Nihayah | ATC POS x2",month:"Nov 2025",stage:"Demo",status:"open",amount:8560},{name:"M.I.R.A Engineering | Autocount Account Plus",month:"Nov 2025",stage:"Lost",status:"lost",amount:4200},{name:"Sunset Meadow | Autocount POS",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"DD VetCare & Surgery | ATC Basic Edition 2 Users",month:"Nov 2025",stage:"Lost",status:"lost",amount:7075},{name:"POS F&B | Hock Wong Foodstuff Sdn Bhd",month:"Nov 2025",stage:"Lost",status:"lost",amount:10000},{name:"OTT Import Export Fresh | ATC Premium 2 Users + POS Basic",month:"Nov 2025",stage:"Won",status:"won",amount:10030},{name:"Vinstella Jewellery | Pipedrive CRM",month:"Dec 2025",stage:"Lost",status:"lost",amount:0},{name:"Rotikitab | ATC POS FnB eInv 1 Terminal",month:"Dec 2025",stage:"Lost",status:"lost",amount:0},{name:"Happy Tail Wonderland | ATC POS",month:"Dec 2025",stage:"Lost",status:"lost",amount:4780},{name:"MK & K Resources Sdn Bhd",month:"Dec 2025",stage:"Lost",status:"lost",amount:0},{name:"Basic | Tanoshi Travel & Tour",month:"Dec 2025",stage:"Won",status:"won",amount:5400},{name:"Top Phone | ATC Palm POS",month:"Dec 2025",stage:"Lost",status:"lost",amount:888},{name:"Payroll 10 Hc | Brew Beauty",month:"Dec 2025",stage:"Lost",status:"lost",amount:1839},{name:"Made Into Design Sdn Bhd",month:"Dec 2025",stage:"Lost",status:"lost",amount:0},{name:"Account Plus | Basic Depth Sdn Bhd",month:"Dec 2025",stage:"Lost",status:"lost",amount:2000},{name:"Basic + Pos | Bestbuy Super Stores Sdn Bhd",month:"Dec 2025",stage:"Lost",status:"lost",amount:13000},{name:"DBA Agro | ATC POS + Hardware",month:"Dec 2025",stage:"Lost",status:"lost",amount:8067},{name:"K.Na Tomyam",month:"Dec 2025",stage:"Lost",status:"lost",amount:0}]},
+      {src:"Website Visitors", total:56, won:14, lost:39, inprog:3, wonAmt:62583, deals:[{name:"Besqem Marketing | ATC Acct. Plus 1U + E-invoice 1U",month:"Jul 2025",stage:"Won",status:"won",amount:2585},{name:"Hiap Hong Agencies (Seremban) | ATC Basic 4U + eInv 1 Co",month:"Jul 2025",stage:"Won",status:"won",amount:18830},{name:"Account | KF Renovation",month:"Jul 2025",stage:"Lost",status:"lost",amount:4350},{name:"Highway Star | ATC Accounting w integrator",month:"Jul 2025",stage:"Lost",status:"lost",amount:5230},{name:"Highway Star | Payroll HRMS",month:"Jul 2025",stage:"Lost",status:"lost",amount:1715},{name:"Cloud Accounting-plus | Visible Construction",month:"Jul 2025",stage:"Won",status:"won",amount:2290},{name:"Moghul Mahal | ATC Acc Plus",month:"Jul 2025",stage:"Lost",status:"lost",amount:2450},{name:"Seremban Toast House | Xilnex POS Quickservice 3 Outlets",month:"Jul 2025",stage:"Lost",status:"lost",amount:26685},{name:"Payroll | TQS Konsult PLT",month:"Aug 2025",stage:"Lost",status:"lost",amount:1865},{name:"Today Bakeries Products (Klang) | ATC POS",month:"Aug 2025",stage:"Lost",status:"lost",amount:0},{name:"Maritime Network | ATC Bas 4U + eInv 1 Co + Integrator",month:"Aug 2025",stage:"Lost",status:"lost",amount:18410},{name:"(Merdeka promo) Account plus | Sonoma Furniture Sdn Bhd",month:"Aug 2025",stage:"Lost",status:"lost",amount:2800},{name:"Mofa Tech | ATC Account Plus 1 User + e-invoice 1 Company",month:"Aug 2025",stage:"Won",status:"won",amount:2300},{name:"Accountplus | Ataj Mgt",month:"Aug 2025",stage:"Lost",status:"lost",amount:3000},{name:"SS One Capital | Autocount Account Plus",month:"Sep 2025",stage:"Lost",status:"lost",amount:3000},{name:"Zahara Media | ATC Basic 1 User + Cloud Payroll 5 Users",month:"Sep 2025",stage:"Won",status:"won",amount:4433},{name:"Support + Cloud Server | Star Fine Chemicals",month:"Sep 2025",stage:"Lost",status:"lost",amount:4080},{name:"Accountplus | H&J Furniture Renovation",month:"Sep 2025",stage:"Lost",status:"lost",amount:1825},{name:"Cloud Accounting + Palm Pos | Cico Marketing",month:"Sep 2025",stage:"Lost",status:"lost",amount:3000},{name:"Flexi Flex Hydraulics | ATC Pro 5U",month:"Sep 2025",stage:"Lost",status:"lost",amount:15030},{name:"Emperial Corporate Strategies | Accountant",month:"Oct 2025",stage:"Lost",status:"lost",amount:0},{name:"Chiyoda Integre (J) Sdn Bhd | AutoCount",month:"Oct 2025",stage:"Lost",status:"lost",amount:0},{name:"HL Management Co | ATC Basic 5U + Asset Register",month:"Oct 2025",stage:"Lost",status:"lost",amount:26634},{name:"Voyserra Vacation Sdn Bhd",month:"Oct 2025",stage:"Won",status:"won",amount:5055},{name:"Asia Pacific Realty | ATC Acc Plus",month:"Oct 2025",stage:"Negotiation",status:"open",amount:3685},{name:"Basic | Shifen Holding Sdn Bhd",month:"Oct 2025",stage:"Lost",status:"lost",amount:7160},{name:"raudhatul ulum edu | Autocount Basic",month:"Oct 2025",stage:"Lost",status:"lost",amount:3985},{name:"Gill | AutoCount Accounting",month:"Oct 2025",stage:"Lost",status:"lost",amount:4500},{name:"1.9-2.2 Basic + App Access | Ansson Hardware Sdn Bhd",month:"Oct 2025",stage:"Lost",status:"lost",amount:3915},{name:"Anticimex | HRDC | ATC Upgrade to Pro + Retraining",month:"Oct 2025",stage:"This Week",status:"open",amount:16000},{name:"Support | Heritage Whisky",month:"Oct 2025",stage:"Won",status:"won",amount:600},{name:"ATC + Payroll | Key Master Enterprise",month:"Oct 2025",stage:"Lost",status:"lost",amount:3250},{name:"Rokonma | ATC Production Order",month:"Oct 2025",stage:"Lost",status:"lost",amount:0},{name:"Basic + Sitegiant Plugin | Rain Ayur Sdn Bhd",month:"Oct 2025",stage:"Lost",status:"lost",amount:6000},{name:"NMKAY Holdings Sdn Bhd | AutoCount Cloud Accounting 15 Users",month:"Oct 2025",stage:"Lost",status:"lost",amount:0},{name:"Brownfield Engineering | ATC training (stock)",month:"Nov 2025",stage:"Lost",status:"lost",amount:600},{name:"Le Meat House | POS FnB",month:"Nov 2025",stage:"Lost",status:"lost",amount:5447},{name:"Prim Light Sdn Bhd | Cloud Server for Hosting 8GB RAM",month:"Nov 2025",stage:"Lost",status:"lost",amount:5580},{name:"ESC | Bank Giro Plugin",month:"Nov 2025",stage:"Negotiation",status:"open",amount:2980},{name:"Satu Muhibbah Resources | AutoCount Accounting",month:"Nov 2025",stage:"Won",status:"won",amount:2150},{name:"1.9-2.2 Upgrade | Ansheng Enterprise",month:"Nov 2025",stage:"Won",status:"won",amount:2180},{name:"10 Infinity Sdn Bhd | ATC Sales Comm Report Plugin",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"Mohd Shukri | AutoCount Accounting and POS customisation",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"Express | Seed4Future",month:"Nov 2025",stage:"Lost",status:"lost",amount:3000},{name:"Nazren Medical and Healthcare | AutoCount Basic 3U + eInv 1 Co",month:"Nov 2025",stage:"Lost",status:"lost",amount:20230},{name:"Baisc + Plugin | Edna Group Sdn Bhd",month:"Nov 2025",stage:"Lost",status:"lost",amount:6095},{name:"Alwin Resources | ATC Account plus",month:"Nov 2025",stage:"Won",status:"won",amount:2300},{name:"Solesor Kampong Beach Resort | ATC Basic Training",month:"Nov 2025",stage:"Won",status:"won",amount:1450},{name:"Finest Advisory Sdn Bhd | ATC Acc Plus 1U + eInv 1 Co",month:"Nov 2025",stage:"Lost",status:"lost",amount:3235},{name:"TNT Communications | ATC Acc Plus",month:"Dec 2025",stage:"Lost",status:"lost",amount:0},{name:"JMB Pangsapuri Andorra | Autocount BSM",month:"Dec 2025",stage:"Lost",status:"lost",amount:5000},{name:"ATC Account Plus 2 Users | Maxwell Metal Surface",month:"Dec 2025",stage:"Won",status:"won",amount:3000},{name:"Accountplus | VVC Optometrist Johor",month:"Dec 2025",stage:"Lost",status:"lost",amount:1800},{name:"Xilnex POS | Imay Pharmacy",month:"Dec 2025",stage:"Lost",status:"lost",amount:6776},{name:"Big Idea Advertising & Design | ATC Basic + Customization + 3 AppAccess",month:"Dec 2025",stage:"Won",status:"won",amount:13980},{name:"Asia Ceramic | Yearly Support Basic Edition 3 Users",month:"Dec 2025",stage:"Won",status:"won",amount:1430}]},
+      {src:"Web Forms", total:17, won:7, lost:8, inprog:2, wonAmt:71276, deals:[{name:"FMT Media Sdn Bhd",month:"Jul 2025",stage:"Won",status:"won",amount:700},{name:"CKF Duck Food | ATC Premium + Disassembly",month:"Jul 2025",stage:"Lost",status:"lost",amount:14550},{name:"MIM BA GROUP | ATC POS",month:"Aug 2025",stage:"Lost",status:"lost",amount:0},{name:"Mayshowa Sdn Bhd | ATC Premium 3U",month:"Sep 2025",stage:"Lost",status:"lost",amount:0},{name:"Account plus + Payroll | Leader Logistic Worldwide",month:"Sep 2025",stage:"Won",status:"won",amount:4940},{name:"En Iskandar | ATC Accounting",month:"Oct 2025",stage:"Won",status:"won",amount:1700},{name:"TUTAMEN (MALAYSIA) | ATC Basic",month:"Oct 2025",stage:"Negotiation",status:"open",amount:8068},{name:"Agensi Pekerjaan EIFEL Sdn Bhd",month:"Oct 2025",stage:"Lost",status:"lost",amount:3015},{name:"ATC Pre10U + Sql runtime + AppAccess4U + eInv2Co | Clean Living",month:"Oct 2025",stage:"Won",status:"won",amount:46500},{name:"Deplus Design | Autocount Accounting & payroll",month:"Oct 2025",stage:"Won",status:"won",amount:12411},{name:"Binakon Sdn Bhd | ATC Cloud / Integration",month:"Oct 2025",stage:"Lost",status:"lost",amount:20000},{name:"App Access | Kokos Sdn Bhd",month:"Oct 2025",stage:"Lost",status:"lost",amount:900},{name:"Henglass | ATC Premium + Customization",month:"Nov 2025",stage:"Demo",status:"open",amount:0},{name:"H-Point Pharmacy | ATC Basic 14 Users + Advanced Multi UOM",month:"Nov 2025",stage:"Won",status:"won",amount:2675},{name:"Sales Hero B2C 10U | Stephen Handford",month:"Dec 2025",stage:"Lost",status:"lost",amount:26775},{name:"Basic + E-inv | Jernih Sewerage",month:"Dec 2025",stage:"Won",status:"won",amount:2350},{name:"ATC Cloud Accounting Professional 2 Years | Spectrum Integrated Technologies",month:"Dec 2025",stage:"Lost",status:"lost",amount:3030}]},
+      {src:"Google Adwords", total:16, won:3, lost:12, inprog:1, wonAmt:3660, deals:[{name:"E-inv Classroom Training | Wan Joo Heng Co.",month:"Jul 2025",stage:"Won",status:"won",amount:250},{name:"Pagi Pagi Enterprise | ATC Basic + F&B POS",month:"Jul 2025",stage:"Lost",status:"lost",amount:0},{name:"RR Asia | ATC Yearly Support Contract",month:"Jul 2025",stage:"Won",status:"won",amount:1100},{name:"Fixx BZ Resources | ATC CA Plus",month:"Jul 2025",stage:"Lost",status:"lost",amount:1900},{name:"El Taco Express & Amuthas Fish head curry | ATC",month:"Jul 2025",stage:"Lost",status:"lost",amount:6790},{name:"Cahaya Kelang Construction | ATC Basic 2 Users",month:"Jul 2025",stage:"Lost",status:"lost",amount:60000},{name:"AI Partners Holding Sdn Bhd | POS + Account plus",month:"Jul 2025",stage:"Lost",status:"lost",amount:6000},{name:"Express | JJ Reno Task",month:"Jul 2025",stage:"Lost",status:"lost",amount:5946},{name:"Cloud Accounting + Cloud Payroll | Elevatte Advisory",month:"Jul 2025",stage:"Won",status:"won",amount:2310},{name:"POS + Account | Money Corner Restaurant",month:"Aug 2025",stage:"Lost",status:"lost",amount:6000},{name:"KB Print And Media | ATC Account Plus",month:"Aug 2025",stage:"Lost",status:"lost",amount:3600},{name:"Perniagaan Swee Kee | ATC Pro 3U + 7 POS",month:"Aug 2025",stage:"Demo",status:"open",amount:30902},{name:"Trend Borneo Tours & Travel Sdn Bhd | ATC CA Demo",month:"Oct 2025",stage:"Lost",status:"lost",amount:1870},{name:"Elim Medicare | AutoCount POS Basic",month:"Oct 2025",stage:"Lost",status:"lost",amount:3000},{name:"ATC Basic 2U + eInv 1Co | IK Management Consultant",month:"Nov 2025",stage:"Lost",status:"lost",amount:9050},{name:"Accountplus | E & H Electrical Sdn Bhd",month:"Dec 2025",stage:"Lost",status:"lost",amount:2000}]},
+      {src:"Webinar", total:10, won:4, lost:5, inprog:1, wonAmt:2130, deals:[{name:"IMPREX SOLUTIONS | Additional Module",month:"Oct 2025",stage:"Won",status:"won",amount:600},{name:"ROKONMA (M) | ATC Bank Recon",month:"Oct 2025",stage:"High Chances",status:"open",amount:0},{name:"Virtual Network Solutions | Bank Giro",month:"Oct 2025",stage:"Lost",status:"lost",amount:4000},{name:"KAZ AKITEK | ATC V2 Upg + eInv",month:"Nov 2025",stage:"Won",status:"won",amount:1030},{name:"E-inv Online Training | Newest Megane (M) Sdn Bhd",month:"Nov 2025",stage:"Won",status:"won",amount:250},{name:"Homestar Manufacturing | ATC Fixed Asset Plugin",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"Asset Management Resources | ATC Asset Register Plugin",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"Fabulous Sunview | ATC Bank Recon",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"Perunding Maju Setia Sdn Bhd",month:"Dec 2025",stage:"Won",status:"won",amount:250},{name:"Questech scientific sdn bhd",month:"Dec 2025",stage:"Lost",status:"lost",amount:13000}]},
+      {src:"Trade Show", total:6, won:2, lost:4, inprog:0, wonAmt:4960, deals:[{name:"Fire Bender Import and Export Sdn Bhd | ATC Stock Solution",month:"Oct 2025",stage:"Lost",status:"lost",amount:25300},{name:"Delphina Technik | ATC Basic v2 Upg + eInv 2 Co",month:"Oct 2025",stage:"Won",status:"won",amount:4710},{name:"Comcentric Solutions | Autocount Payroll",month:"Oct 2025",stage:"Lost",status:"lost",amount:1720},{name:"SMF Steelmakers | E-invoice Training",month:"Nov 2025",stage:"Won",status:"won",amount:250},{name:"Camps & Apparels Corp | ATC Cloud Payroll + Time Attendance",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"Skitech Solutions | ATC Demo",month:"Nov 2025",stage:"Lost",status:"lost",amount:4450}]},
+      {src:"External Referral", total:3, won:2, lost:1, inprog:0, wonAmt:6400, deals:[{name:"KB Jaya Enterprise | ATC Basic Edition 3 Users",month:"Oct 2025",stage:"Lost",status:"lost",amount:4100},{name:"ATC Basic | Run A Production Sdn Bhd",month:"Dec 2025",stage:"Won",status:"won",amount:4200},{name:"Rendang Engineering & Services",month:"Dec 2025",stage:"Won",status:"won",amount:2200}]},
+      {src:"Live Chat", total:2, won:1, lost:1, inprog:0, wonAmt:600, deals:[{name:"TRI CAPITAL RESOURCES | ATC Basic Training Stock + SST Module",month:"Jul 2025",stage:"Won",status:"won",amount:600},{name:"Basic (Merdeka Promo) | Sunsteel Kem Sdn Bhd",month:"Aug 2025",stage:"Lost",status:"lost",amount:4325}]},
+      {src:"WhatsApp", total:2, won:1, lost:1, inprog:0, wonAmt:3788, deals:[{name:"Sin Ban Huat Meat | ATC Acc Plus",month:"Jul 2025",stage:"Lost",status:"lost",amount:0},{name:"SBS Blast and Painting | ATC Acc Plus + appAccess",month:"Aug 2025",stage:"Won",status:"won",amount:3788}]},
+      {src:"Advertisement", total:1, won:1, lost:0, inprog:0, wonAmt:4749, deals:[{name:"Yuan Woh Sauce Factory | ATC Account Plus 1 User",month:"Jul 2025",stage:"Won",status:"won",amount:4749}]},
+      {src:"Principal", total:1, won:0, lost:1, inprog:0, wonAmt:0, deals:[{name:"WK Goh & Co. | Accountant Set",month:"Aug 2025",stage:"Lost",status:"lost",amount:2300}]},
+      {src:"Lead Magnet", total:1, won:1, lost:0, inprog:0, wonAmt:2750, deals:[{name:"Agathae Business | ATC Acc Plus 1U",month:"Dec 2025",stage:"Won",status:"won",amount:2750}]},
+      {src:"Employee Referral", total:1, won:1, lost:0, inprog:0, wonAmt:3814, deals:[{name:"Palm Pos + Cloud Acc | One Every Fresh",month:"Dec 2025",stage:"Won",status:"won",amount:3814}]},
+      {src:"Old Gold", total:1, won:1, lost:0, inprog:0, wonAmt:2170, deals:[{name:"ATC Cloud Accounting Basic 2 Years | Odi Engineering",month:"Dec 2025",stage:"Won",status:"won",amount:2170}]}
+    ]
+  },
+  '2025-full': {
+    label: "Full Year 2025", subtitle: "395 deals",
+    insight: "<strong>395 AutoCount deals, 105 won (26.6% won rate)</strong>, RM 668,770 won value. <em>New Sales team · AutoCount product only (converted-lead basis, excl. BrioHR).</em> Highest volume: <strong>Website Visitors</strong> (103 deals). Best converting (≥8 deals): <strong>Old Gold</strong> (56%). <strong>Kovann Mirror (RM 105K via External Referral)</strong> is the largest 2025 win. ",
+    rows: [
+      {src:"Website Visitors", total:103, won:34, lost:64, inprog:5, wonAmt:175699, deals:[{name:"Sunny Spot | Account Plus + e-invoice 1C",month:"Jan 2025",stage:"Won",status:"won",amount:4040},{name:"Sharaa Consultancy | Account Plus + e-invoice 1C",month:"Jan 2025",stage:"Won",status:"won",amount:1950},{name:"HLL Management | e-invoice 3 Companies",month:"Jan 2025",stage:"Lost",status:"lost",amount:4585},{name:"Norvic Corporate Services | ATC eInv / Cloud Accounting",month:"Jan 2025",stage:"Lost",status:"lost",amount:0},{name:"Empayar Holding Enterprise | Training",month:"Jan 2025",stage:"Won",status:"won",amount:2570},{name:"Ramusa Engineering Sdn Bhd",month:"Feb 2025",stage:"Lost",status:"lost",amount:0},{name:"DTEQ Asia Pacific | ATC Acc Plus 1U + eInv 1 Co",month:"Feb 2025",stage:"Won",status:"won",amount:2650},{name:"Feng Yuan Furniture | ATC Basic 3U + eInv 1 Co",month:"Feb 2025",stage:"Lost",status:"lost",amount:7770},{name:"PPW VENTURES | ATC Upg 2U + eInv 1Co",month:"Feb 2025",stage:"Won",status:"won",amount:3540},{name:"Kaolin (Malaysia) | AutoCount Cloud Payroll 60HC",month:"Feb 2025",stage:"Won",status:"won",amount:1840},{name:"E-inv 1.9-2.2 | SYARIKAT KONG NGEE",month:"Feb 2025",stage:"Lost",status:"lost",amount:5185},{name:"Kenjo | ATC Basic 3U + POS + eInv 1 Co + appAccess",month:"Feb 2025",stage:"Lost",status:"lost",amount:35379},{name:"Atc | Acten FH Tire",month:"Mar 2025",stage:"Lost",status:"lost",amount:3100},{name:"Nana | ATC | e-invoicing",month:"Mar 2025",stage:"Negotiation",status:"open",amount:0},{name:"Miss Fa | ATC Account Plus + E-inv",month:"Mar 2025",stage:"Won",status:"won",amount:2535},{name:"Alat-Alat Ganti Hock Leong | AutoCount Demo",month:"Mar 2025",stage:"Lost",status:"lost",amount:3785},{name:"Megah Utama Shipping | AutoCount",month:"Apr 2025",stage:"Lost",status:"lost",amount:10000},{name:"[Grant]MC Mitra | ATC Cloud Accounting 5yr",month:"Apr 2025",stage:"Won",status:"won",amount:8410},{name:"Perbadanan Pengurusan Pangsapuri Mutiara | Account plus",month:"Apr 2025",stage:"Won",status:"won",amount:2300},{name:"PTS Food Distribution | ATC SQL Runtime License 23U",month:"Apr 2025",stage:"Won",status:"won",amount:18400},{name:"TG Lighting | ATC POS Std",month:"Apr 2025",stage:"Lost",status:"lost",amount:6304},{name:"Midec Wood | ATC Acc Plus + eInv + Customization",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"Restoran Nasi Kandar Melotop | POS System",month:"Apr 2025",stage:"Won",status:"won",amount:9880},{name:"Friendbond Corporate Advisory | AutoCount Accountant Set",month:"Apr 2025",stage:"Won",status:"won",amount:8620},{name:"Maxpro Chemical | ATC Acc Plus",month:"Apr 2025",stage:"Won",status:"won",amount:2985},{name:"Veygah Chem Trading | ATC Acc Plus Demo",month:"Apr 2025",stage:"Lost",status:"lost",amount:3880},{name:"Kinsen Home | ATC solutioning / WMS",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"Basic + Item matrix | BBV Classic Sdn Bhd",month:"Apr 2025",stage:"Lost",status:"lost",amount:3000},{name:"N&G Management Services Sdn Bhd",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"Training | I&E Converge Sdn Bhd",month:"Apr 2025",stage:"Won",status:"won",amount:650},{name:"Accountplus | MrTew | Perniagaan sri setiajaya",month:"Apr 2025",stage:"Lost",status:"lost",amount:2800},{name:"Chinnyi Gold Gifts | ATC Acc Plus 2U + eInv 1 Co + AppAccess",month:"May 2025",stage:"Won",status:"won",amount:4635},{name:"Erawan Security | ATC Acc Plus",month:"May 2025",stage:"Won",status:"won",amount:3100},{name:"BUNGA RAYA FLORA NURSERY | ATC Acc Plus",month:"May 2025",stage:"Demo",status:"open",amount:0},{name:"Ken Khor | ATC PalmPOS",month:"May 2025",stage:"Won",status:"won",amount:1138},{name:"Wegrow Global | POS Standard",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"SP William | ATC Acc Plus 1U + eInv 6 Co",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"Above Creative Events | ATC Acc Plus 4U",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"Sri Maju Logistik | ATC CA Basic",month:"May 2025",stage:"Lost",status:"lost",amount:600},{name:"E-inv | Hydrojuta Kinetics Sdn Bhd",month:"Jun 2025",stage:"Lost",status:"lost",amount:7325},{name:"E-inv | KIAN GIAP INTERIOR",month:"Jun 2025",stage:"Won",status:"won",amount:4588},{name:"Rascotec | Integration with FOCUS",month:"Jun 2025",stage:"Lost",status:"lost",amount:54880},{name:"Affinity Consulting Engineers | ATC Acc Plus 1U + eInv",month:"Jun 2025",stage:"Won",status:"won",amount:3885},{name:"RFS Hydraulics Sdn Bhd | SQL Runtime license 22 Users",month:"Jun 2025",stage:"Lost",status:"lost",amount:17950},{name:"BE Automation | Autocount Account Plus",month:"Jun 2025",stage:"Lost",status:"lost",amount:2740},{name:"HRDC | DML Alu | ATC Pre 6U + SN + eInv 2 Co",month:"Jun 2025",stage:"Won",status:"won",amount:25400},{name:"ARAF MAJU | Grant ATC Accounting + POS",month:"Jun 2025",stage:"Lost",status:"lost",amount:6000},{name:"Besqem Marketing | ATC Acct. Plus 1U + E-invoice 1U",month:"Jul 2025",stage:"Won",status:"won",amount:2585},{name:"Hiap Hong Agencies (Seremban) | ATC Basic 4U + eInv 1 Co",month:"Jul 2025",stage:"Won",status:"won",amount:18830},{name:"Account | KF Renovation",month:"Jul 2025",stage:"Lost",status:"lost",amount:4350},{name:"Highway Star | ATC Accounting w integrator",month:"Jul 2025",stage:"Lost",status:"lost",amount:5230},{name:"Highway Star | Payroll HRMS",month:"Jul 2025",stage:"Lost",status:"lost",amount:1715},{name:"Cloud Accounting-plus | Visible Construction",month:"Jul 2025",stage:"Won",status:"won",amount:2290},{name:"Moghul Mahal | ATC Acc Plus",month:"Jul 2025",stage:"Lost",status:"lost",amount:2450},{name:"Seremban Toast House | Xilnex POS Quickservice 3 Outlets",month:"Jul 2025",stage:"Lost",status:"lost",amount:26685},{name:"Payroll | TQS Konsult PLT",month:"Aug 2025",stage:"Lost",status:"lost",amount:1865},{name:"Today Bakeries Products (Klang) | ATC POS",month:"Aug 2025",stage:"Lost",status:"lost",amount:0},{name:"Maritime Network | ATC Bas 4U + eInv 1 Co + Integrator",month:"Aug 2025",stage:"Lost",status:"lost",amount:18410},{name:"(Merdeka promo) Account plus | Sonoma Furniture Sdn Bhd",month:"Aug 2025",stage:"Lost",status:"lost",amount:2800},{name:"Mofa Tech | ATC Account Plus 1 User + e-invoice 1 Company",month:"Aug 2025",stage:"Won",status:"won",amount:2300},{name:"Accountplus | Ataj Mgt",month:"Aug 2025",stage:"Lost",status:"lost",amount:3000},{name:"SS One Capital | Autocount Account Plus",month:"Sep 2025",stage:"Lost",status:"lost",amount:3000},{name:"Zahara Media | ATC Basic 1 User + Cloud Payroll 5 Users",month:"Sep 2025",stage:"Won",status:"won",amount:4433},{name:"Support + Cloud Server | Star Fine Chemicals",month:"Sep 2025",stage:"Lost",status:"lost",amount:4080},{name:"Accountplus | H&J Furniture Renovation",month:"Sep 2025",stage:"Lost",status:"lost",amount:1825},{name:"Cloud Accounting + Palm Pos | Cico Marketing",month:"Sep 2025",stage:"Lost",status:"lost",amount:3000},{name:"Flexi Flex Hydraulics | ATC Pro 5U",month:"Sep 2025",stage:"Lost",status:"lost",amount:15030},{name:"Emperial Corporate Strategies | Accountant",month:"Oct 2025",stage:"Lost",status:"lost",amount:0},{name:"Chiyoda Integre (J) Sdn Bhd | AutoCount",month:"Oct 2025",stage:"Lost",status:"lost",amount:0},{name:"HL Management Co | ATC Basic 5U + Asset Register",month:"Oct 2025",stage:"Lost",status:"lost",amount:26634},{name:"Voyserra Vacation Sdn Bhd",month:"Oct 2025",stage:"Won",status:"won",amount:5055},{name:"Asia Pacific Realty | ATC Acc Plus",month:"Oct 2025",stage:"Negotiation",status:"open",amount:3685},{name:"Basic | Shifen Holding Sdn Bhd",month:"Oct 2025",stage:"Lost",status:"lost",amount:7160},{name:"raudhatul ulum edu | Autocount Basic",month:"Oct 2025",stage:"Lost",status:"lost",amount:3985},{name:"Gill | AutoCount Accounting",month:"Oct 2025",stage:"Lost",status:"lost",amount:4500},{name:"1.9-2.2 Basic + App Access | Ansson Hardware Sdn Bhd",month:"Oct 2025",stage:"Lost",status:"lost",amount:3915},{name:"Anticimex | HRDC | ATC Upgrade to Pro + Retraining",month:"Oct 2025",stage:"This Week",status:"open",amount:16000},{name:"Support | Heritage Whisky",month:"Oct 2025",stage:"Won",status:"won",amount:600},{name:"ATC + Payroll | Key Master Enterprise",month:"Oct 2025",stage:"Lost",status:"lost",amount:3250},{name:"Rokonma | ATC Production Order",month:"Oct 2025",stage:"Lost",status:"lost",amount:0},{name:"Basic + Sitegiant Plugin | Rain Ayur Sdn Bhd",month:"Oct 2025",stage:"Lost",status:"lost",amount:6000},{name:"NMKAY Holdings Sdn Bhd | AutoCount Cloud Accounting 15 Users",month:"Oct 2025",stage:"Lost",status:"lost",amount:0},{name:"Brownfield Engineering | ATC training (stock)",month:"Nov 2025",stage:"Lost",status:"lost",amount:600},{name:"Le Meat House | POS FnB",month:"Nov 2025",stage:"Lost",status:"lost",amount:5447},{name:"Prim Light Sdn Bhd | Cloud Server for Hosting 8GB RAM",month:"Nov 2025",stage:"Lost",status:"lost",amount:5580},{name:"ESC | Bank Giro Plugin",month:"Nov 2025",stage:"Negotiation",status:"open",amount:2980},{name:"Satu Muhibbah Resources | AutoCount Accounting",month:"Nov 2025",stage:"Won",status:"won",amount:2150},{name:"1.9-2.2 Upgrade | Ansheng Enterprise",month:"Nov 2025",stage:"Won",status:"won",amount:2180},{name:"10 Infinity Sdn Bhd | ATC Sales Comm Report Plugin",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"Mohd Shukri | AutoCount Accounting and POS customisation",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"Express | Seed4Future",month:"Nov 2025",stage:"Lost",status:"lost",amount:3000},{name:"Nazren Medical and Healthcare | AutoCount Basic 3U + eInv 1 Co",month:"Nov 2025",stage:"Lost",status:"lost",amount:20230},{name:"Baisc + Plugin | Edna Group Sdn Bhd",month:"Nov 2025",stage:"Lost",status:"lost",amount:6095},{name:"Alwin Resources | ATC Account plus",month:"Nov 2025",stage:"Won",status:"won",amount:2300},{name:"Solesor Kampong Beach Resort | ATC Basic Training",month:"Nov 2025",stage:"Won",status:"won",amount:1450},{name:"Finest Advisory Sdn Bhd | ATC Acc Plus 1U + eInv 1 Co",month:"Nov 2025",stage:"Lost",status:"lost",amount:3235},{name:"TNT Communications | ATC Acc Plus",month:"Dec 2025",stage:"Lost",status:"lost",amount:0},{name:"JMB Pangsapuri Andorra | Autocount BSM",month:"Dec 2025",stage:"Lost",status:"lost",amount:5000},{name:"ATC Account Plus 2 Users | Maxwell Metal Surface",month:"Dec 2025",stage:"Won",status:"won",amount:3000},{name:"Accountplus | VVC Optometrist Johor",month:"Dec 2025",stage:"Lost",status:"lost",amount:1800},{name:"Xilnex POS | Imay Pharmacy",month:"Dec 2025",stage:"Lost",status:"lost",amount:6776},{name:"Big Idea Advertising & Design | ATC Basic + Customization + 3 AppAccess",month:"Dec 2025",stage:"Won",status:"won",amount:13980},{name:"Asia Ceramic | Yearly Support Basic Edition 3 Users",month:"Dec 2025",stage:"Won",status:"won",amount:1430}]},
+      {src:"Facebook", total:72, won:9, lost:55, inprog:8, wonAmt:79486, deals:[{name:"Mandeep Singh | ATC Online Demo",month:"Jan 2025",stage:"Lost",status:"lost",amount:0},{name:"cCloud Accounting | Mykrishna Empire",month:"Jan 2025",stage:"Lost",status:"lost",amount:3560},{name:"Sharon | Account Plus + Unlimited Accountbook",month:"Jan 2025",stage:"Worst Case",status:"open",amount:6830},{name:"SIN YEW SENG | ATC Accounting + e-inv",month:"Jan 2025",stage:"Lost",status:"lost",amount:0},{name:"Masjid Bukit Rahman Putra | ATC Basic 2U + eInv 1Co",month:"Jan 2025",stage:"Lost",status:"lost",amount:18710},{name:"Deto Engineering | ATC Basic + 1Co eInv",month:"Feb 2025",stage:"Lost",status:"lost",amount:6890},{name:"E-inv 2.0 (freelancer) | CL Wong",month:"Feb 2025",stage:"Won",status:"won",amount:2859},{name:"Pengeluaran Hasil Laut Endau | 1.9-2.2 E-inv upgrade",month:"Feb 2025",stage:"Lost",status:"lost",amount:2875},{name:"JT Agency | ATC Acc Plus 1U + eInv 3 Co",month:"Feb 2025",stage:"Lost",status:"lost",amount:4500},{name:"Jing Liang Hair Unisex And Beauty Saloon",month:"Feb 2025",stage:"Quotation",status:"open",amount:0},{name:"Kedai Ubat Wan Soon | ATC POS Basic",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"iFlexs | Basic Edition 3U + e-invoice 2C + VPS + AppAccess",month:"May 2025",stage:"Won",status:"won",amount:18780},{name:"Cloud Account | Sree Kavin Success",month:"Jul 2025",stage:"Lost",status:"lost",amount:1840},{name:"Emphasis Media | ATC Payroll",month:"Jul 2025",stage:"Lost",status:"lost",amount:0},{name:"DT Multi Sdn Bhd",month:"Jul 2025",stage:"Won",status:"won",amount:250},{name:"Basic | Blaze Nail Beauty Sdn Bhd",month:"Jul 2025",stage:"Lost",status:"lost",amount:0},{name:"Siddieq Corner | ATC Acc Plus + POS",month:"Jul 2025",stage:"Quotation",status:"open",amount:0},{name:"Din | ATC Palm POS",month:"Jul 2025",stage:"Lost",status:"lost",amount:0},{name:"Nissa Global Sdn Bhd",month:"Jul 2025",stage:"Lost",status:"lost",amount:0},{name:"Avionics Wheels | ATC Exp Plus + Workshop + eInv 3 Co",month:"Jul 2025",stage:"Lost",status:"lost",amount:0},{name:"Accelutions Digital Technology | ATC Acc Plus",month:"Jul 2025",stage:"Lost",status:"lost",amount:2400},{name:"POS (Retail) | ABID KHOIR ENTERPRISE",month:"Aug 2025",stage:"Lost",status:"lost",amount:5000},{name:"D Saujana Catering | ATC Acct. Plus 1 User",month:"Aug 2025",stage:"Won",status:"won",amount:1700},{name:"IHK Welding | ATC POS (Kiosk)",month:"Aug 2025",stage:"Lost",status:"lost",amount:0},{name:"Terminal Restaurant and Bar | ATC POS Solution",month:"Aug 2025",stage:"Lost",status:"lost",amount:2400},{name:"Trevi 33 | ATC Cloud Accounting Plus 2Y",month:"Aug 2025",stage:"Demo",status:"open",amount:2290},{name:"Batik Sensation | ATC Pro 3U + Item Matrix",month:"Aug 2025",stage:"Demo",status:"open",amount:12830},{name:"1.9 - 2.2 | Big Day Marketing Sdn Bhd",month:"Aug 2025",stage:"Negotiation",status:"open",amount:3000},{name:"Tadika Genius Cerdik",month:"Aug 2025",stage:"Lost",status:"lost",amount:0},{name:"Basic | Ong Bundle",month:"Aug 2025",stage:"Lost",status:"lost",amount:5000},{name:"Bushra International | ATC CA Plus",month:"Aug 2025",stage:"Lost",status:"lost",amount:1900},{name:"Zulkefly | ATC Payroll",month:"Aug 2025",stage:"Lost",status:"lost",amount:1858},{name:"Kasatech Hardwares | ATC Basic 3 Users + Sitegiant + Cloud Payroll",month:"Sep 2025",stage:"Won",status:"won",amount:20827},{name:"PS3G Sdn Bhd | Autocount HRMS with e-attendance",month:"Sep 2025",stage:"Lost",status:"lost",amount:6798},{name:"POS Hardware | Riz",month:"Sep 2025",stage:"Lost",status:"lost",amount:2088},{name:"Basic | A&C Department store sdn bhd",month:"Sep 2025",stage:"Lost",status:"lost",amount:4500},{name:"ATC Cloud Accounting Plus 2Y | TMG Business Development",month:"Sep 2025",stage:"Negotiation",status:"open",amount:2440},{name:"PIDEZZA | Xilnex POS",month:"Sep 2025",stage:"Lost",status:"lost",amount:0},{name:"Pro + 14 User + Plugin | Spektra Bumimas Sdn Bhd",month:"Sep 2025",stage:"Lost",status:"lost",amount:25000},{name:"LK Seven Super Mart Sdn Bhd",month:"Oct 2025",stage:"Lost",status:"lost",amount:0},{name:"Starlife F&B | ATC POS",month:"Oct 2025",stage:"Lost",status:"lost",amount:8642},{name:"Premium + 3 User | SKy Blue",month:"Oct 2025",stage:"Lost",status:"lost",amount:10000},{name:"Putra Food Industries Sdn Bhd",month:"Oct 2025",stage:"Lost",status:"lost",amount:0},{name:"Restoran Cempaka Tomyam | POS Unit for 1",month:"Oct 2025",stage:"Lost",status:"lost",amount:3200},{name:"WL Living Concept Resources",month:"Oct 2025",stage:"Lost",status:"lost",amount:0},{name:"Escapade Boutique | ATC POS + Hardware",month:"Oct 2025",stage:"Won",status:"won",amount:9869},{name:"Express Plus | Ruchi bhojanam",month:"Nov 2025",stage:"Lost",status:"lost",amount:2500},{name:"Sri Kassim | ATC POS",month:"Nov 2025",stage:"Won",status:"won",amount:9771},{name:"Basic | Wai choy",month:"Nov 2025",stage:"Lost",status:"lost",amount:2187},{name:"2 POS + Pro | MMIS Trading",month:"Nov 2025",stage:"Lost",status:"lost",amount:10000},{name:"Warung Pak Burn | ATC POS",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"ATC Premium | Gamat Emas Sdn Bhd",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"Sahnur Lanskap | Cloud Accounting Lite",month:"Nov 2025",stage:"Lost",status:"lost",amount:1840},{name:"V.S. Varusai Ibrahim & Co | ATC POS",month:"Nov 2025",stage:"Lost",status:"lost",amount:6000},{name:"Archery Albidayah Wan Nihayah | ATC POS x2",month:"Nov 2025",stage:"Demo",status:"open",amount:8560},{name:"M.I.R.A Engineering | Autocount Account Plus",month:"Nov 2025",stage:"Lost",status:"lost",amount:4200},{name:"Sunset Meadow | Autocount POS",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"DD VetCare & Surgery | ATC Basic Edition 2 Users",month:"Nov 2025",stage:"Lost",status:"lost",amount:7075},{name:"POS F&B | Hock Wong Foodstuff Sdn Bhd",month:"Nov 2025",stage:"Lost",status:"lost",amount:10000},{name:"OTT Import Export Fresh | ATC Premium 2 Users + POS Basic",month:"Nov 2025",stage:"Won",status:"won",amount:10030},{name:"Vinstella Jewellery | Pipedrive CRM",month:"Dec 2025",stage:"Lost",status:"lost",amount:0},{name:"Rotikitab | ATC POS FnB eInv 1 Terminal",month:"Dec 2025",stage:"Lost",status:"lost",amount:0},{name:"Happy Tail Wonderland | ATC POS",month:"Dec 2025",stage:"Lost",status:"lost",amount:4780},{name:"MK & K Resources Sdn Bhd",month:"Dec 2025",stage:"Lost",status:"lost",amount:0},{name:"Basic | Tanoshi Travel & Tour",month:"Dec 2025",stage:"Won",status:"won",amount:5400},{name:"Top Phone | ATC Palm POS",month:"Dec 2025",stage:"Lost",status:"lost",amount:888},{name:"Payroll 10 Hc | Brew Beauty",month:"Dec 2025",stage:"Lost",status:"lost",amount:1839},{name:"Made Into Design Sdn Bhd",month:"Dec 2025",stage:"Lost",status:"lost",amount:0},{name:"Account Plus | Basic Depth Sdn Bhd",month:"Dec 2025",stage:"Lost",status:"lost",amount:2000},{name:"Basic + Pos | Bestbuy Super Stores Sdn Bhd",month:"Dec 2025",stage:"Lost",status:"lost",amount:13000},{name:"DBA Agro | ATC POS + Hardware",month:"Dec 2025",stage:"Lost",status:"lost",amount:8067},{name:"K.Na Tomyam",month:"Dec 2025",stage:"Lost",status:"lost",amount:0}]},
+      {src:"Webinar", total:54, won:14, lost:34, inprog:6, wonAmt:43519, deals:[{name:"L & L Stationery | ATC Pro 5U v2 upg + eInv 1 Co",month:"Jan 2025",stage:"Won",status:"won",amount:2995},{name:"Sastronic | V2 upgrade + e-invoicing 4C",month:"Jan 2025",stage:"Won",status:"won",amount:10220},{name:"Ideas Policy Research Berhad | ATC Accounting + e-inv",month:"Jan 2025",stage:"Lost",status:"lost",amount:0},{name:"E-inv | INDELFE",month:"Jan 2025",stage:"Lost",status:"lost",amount:5040},{name:"TT FISH MART | ATC e-Inv",month:"Jan 2025",stage:"Demo",status:"open",amount:0},{name:"Kinetrol Asia | ATC Premium eInv 1 Co",month:"Jan 2025",stage:"Won",status:"won",amount:2000},{name:"Tai Seng Tyres Trading Sdn Bhd",month:"Jan 2025",stage:"Demo",status:"open",amount:1330},{name:"Litt Tatt | Report Customization",month:"Feb 2025",stage:"Lost",status:"lost",amount:0},{name:"Jesmm Manufacture | ATC Account Plus",month:"Feb 2025",stage:"Lost",status:"lost",amount:3140},{name:"Fashionhomez | Cloud Accounting Lite 1 User",month:"Feb 2025",stage:"Won",status:"won",amount:1140},{name:"B&J Computer Services | Account plus",month:"Feb 2025",stage:"Lost",status:"lost",amount:3138},{name:"TKTC enterprise | ATC Cloud Accounting Lite 2 Years",month:"Feb 2025",stage:"Lost",status:"lost",amount:1690},{name:"Crossroad Publication | Cloud Accounting",month:"Feb 2025",stage:"Lost",status:"lost",amount:0},{name:"STD Vision | ATC & E-Inv Online Demo",month:"Feb 2025",stage:"Lost",status:"lost",amount:0},{name:"Ks Liong | e-invoicing",month:"Feb 2025",stage:"Leads",status:"open",amount:0},{name:"Account plus | Baba seafood",month:"Feb 2025",stage:"Won",status:"won",amount:4525},{name:"E-inv | Insplace Trading",month:"Feb 2025",stage:"Lost",status:"lost",amount:0},{name:"Multigrowth Plus Sdn Bhd",month:"Feb 2025",stage:"Negotiation",status:"open",amount:10000},{name:"Wan Ling Tan | e-invoicing",month:"Feb 2025",stage:"Lost",status:"lost",amount:0},{name:"Atc | PGH MANAGEMENT CONSULTANCY & SERVICES",month:"Feb 2025",stage:"Lost",status:"lost",amount:3065},{name:"Zealtechnic Solution Sdn Bhd | V2 upgrade + e-inv",month:"Feb 2025",stage:"Lost",status:"lost",amount:4060},{name:"Koh Motor | ATC Acc Plus + eInv",month:"Feb 2025",stage:"Lost",status:"lost",amount:2890},{name:"Ubs - atc | KY computer",month:"Feb 2025",stage:"Lost",status:"lost",amount:0},{name:"Mrs Chin Freelance | ATC Cloud Accounting",month:"Feb 2025",stage:"Lost",status:"lost",amount:1330},{name:"ATC | O'rec Sdn Bhd",month:"Feb 2025",stage:"Won",status:"won",amount:4275},{name:"RB & Co | ATC e-invoicing",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"E-inv | Setia Hospimart",month:"Mar 2025",stage:"Lost",status:"lost",amount:3150},{name:"E-inv | SIMHAN",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"Annie Yong | ATC e-inv",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"C.N Chan Management Services | ATC + BMS",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"SelectPack Technology (SE Asia) Sdn Bhd",month:"Mar 2025",stage:"Won",status:"won",amount:2740},{name:"Cloud E-inv Training | CJM One Stop Enterprise",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"1.9-2.2 + API | SBT SOFTWARE CONSULTING SDN BHD",month:"Apr 2025",stage:"Lost",status:"lost",amount:5000},{name:"Sincere Equipment Sdn Bhd",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"My digital media | AutoCount cloud accounting",month:"Apr 2025",stage:"Demo",status:"open",amount:0},{name:"Cloud Accounting | Sledgehammer",month:"Apr 2025",stage:"Won",status:"won",amount:3474},{name:"Account Plus | VL APPAREL",month:"May 2025",stage:"Lost",status:"lost",amount:2965},{name:"Ms Teng | ATC V2 Upg / ATC CA",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"MAJU HANDICRAFT SDN BHD",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"PAN CONTINENTAL | ATC Basic",month:"May 2025",stage:"Lost",status:"lost",amount:4130},{name:"YOU FOONG SERVICE",month:"Jun 2025",stage:"Lost",status:"lost",amount:1200},{name:"M SALIM Curtain PLT | ATC DEMO",month:"Jun 2025",stage:"Lost",status:"lost",amount:0},{name:"Stenergy Medical Supplies | ATC Pro 1U",month:"Jun 2025",stage:"Won",status:"won",amount:7280},{name:"Wiz Management | PELICAN ENT",month:"Jun 2025",stage:"Won",status:"won",amount:2740},{name:"IMPREX SOLUTIONS | Additional Module",month:"Oct 2025",stage:"Won",status:"won",amount:600},{name:"ROKONMA (M) | ATC Bank Recon",month:"Oct 2025",stage:"High Chances",status:"open",amount:0},{name:"Virtual Network Solutions | Bank Giro",month:"Oct 2025",stage:"Lost",status:"lost",amount:4000},{name:"KAZ AKITEK | ATC V2 Upg + eInv",month:"Nov 2025",stage:"Won",status:"won",amount:1030},{name:"E-inv Online Training | Newest Megane (M) Sdn Bhd",month:"Nov 2025",stage:"Won",status:"won",amount:250},{name:"Homestar Manufacturing | ATC Fixed Asset Plugin",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"Asset Management Resources | ATC Asset Register Plugin",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"Fabulous Sunview | ATC Bank Recon",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"Perunding Maju Setia Sdn Bhd",month:"Dec 2025",stage:"Won",status:"won",amount:250},{name:"Questech scientific sdn bhd",month:"Dec 2025",stage:"Lost",status:"lost",amount:13000}]},
+      {src:"Google Adwords", total:44, won:11, lost:29, inprog:4, wonAmt:57524, deals:[{name:"Multi Effort (M) Sdn Bhd",month:"Mar 2025",stage:"Lost",status:"lost",amount:3050},{name:"Today Bakeries Products (Klang) | ATC Pre 3U + eInv 1 Co",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"Atc | Rizqi Appliances Enterprise",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"Account Plus | SEA VILLAGE RESTORAN",month:"Apr 2025",stage:"Lost",status:"lost",amount:3066},{name:"Nedun Janagi Enterprise | ATC Account Plus",month:"Apr 2025",stage:"Lost",status:"lost",amount:3185},{name:"LIEW LIK YI | E-inv",month:"Apr 2025",stage:"Quotation",status:"open",amount:0},{name:"Chando (Malaysia) Sdn Bhd | Looking for Site Giant link",month:"Apr 2025",stage:"Lost",status:"lost",amount:7580},{name:"Aush Milby | AutoCount Account Plus + 1 EINV",month:"Apr 2025",stage:"Won",status:"won",amount:2085},{name:"Account plus | TSC Green",month:"Apr 2025",stage:"Lost",status:"lost",amount:2000},{name:"I Tiara Production Sdn Bhd | Account Plus",month:"Apr 2025",stage:"Lost",status:"lost",amount:2717},{name:"LCM Maha Energy | ATC Pro + AppAccess 1 User",month:"Apr 2025",stage:"Won",status:"won",amount:6900},{name:"U & I Production House (M) Sdn Bhd",month:"May 2025",stage:"Lost",status:"lost",amount:3385},{name:"Pekan Ilmu Publications | ATC Accounting Basic",month:"May 2025",stage:"Lost",status:"lost",amount:5230},{name:"Force Car Turbo Service",month:"May 2025",stage:"Lost",status:"lost",amount:2140},{name:"Chop Wah Hin",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"Yee Sern Hardware | V2 upgrade + e-inv",month:"May 2025",stage:"Quotation",status:"open",amount:3457},{name:"MHL Global Trading | ATC POS Basic",month:"May 2025",stage:"Won",status:"won",amount:3500},{name:"Heng Leong Toys Center | ATC POS Standard + Hardware",month:"May 2025",stage:"Lost",status:"lost",amount:12389},{name:"POS + Basic | Yumi Bakery",month:"Jun 2025",stage:"Won",status:"won",amount:26749},{name:"Accountant set | X Consultancy Group",month:"Jun 2025",stage:"Lost",status:"lost",amount:3150},{name:"KS Brothers Metal Trading | ATC ACC PLUS",month:"Jun 2025",stage:"Lost",status:"lost",amount:3135},{name:"Pusat Bahasa Aspen | ATC Cloud Accounting Basic Edition",month:"Jun 2025",stage:"Won",status:"won",amount:1920},{name:"A6 Engineering Enterprise | ATC Demo",month:"Jun 2025",stage:"Lost",status:"lost",amount:0},{name:"Gear Master Empire | Express Plus 1 User + einv 1C",month:"Jun 2025",stage:"Won",status:"won",amount:2650},{name:"SpaceItOut Interior Design | ATC Acc Plus + eInv",month:"Jun 2025",stage:"Demo",status:"open",amount:3385},{name:"Pusat Pendidikan Al Hikmah | ATC Basic 4 users",month:"Jun 2025",stage:"Won",status:"won",amount:9280},{name:"J Velu Enterprise",month:"Jun 2025",stage:"Lost",status:"lost",amount:6000},{name:"ONG IT & COMPUTER MISSION",month:"Jun 2025",stage:"Won",status:"won",amount:780},{name:"E-inv Classroom Training | Wan Joo Heng Co.",month:"Jul 2025",stage:"Won",status:"won",amount:250},{name:"Pagi Pagi Enterprise | ATC Basic + F&B POS",month:"Jul 2025",stage:"Lost",status:"lost",amount:0},{name:"RR Asia | ATC Yearly Support Contract",month:"Jul 2025",stage:"Won",status:"won",amount:1100},{name:"Fixx BZ Resources | ATC CA Plus",month:"Jul 2025",stage:"Lost",status:"lost",amount:1900},{name:"El Taco Express & Amuthas Fish head curry | ATC",month:"Jul 2025",stage:"Lost",status:"lost",amount:6790},{name:"Cahaya Kelang Construction | ATC Basic 2 Users",month:"Jul 2025",stage:"Lost",status:"lost",amount:60000},{name:"AI Partners Holding Sdn Bhd | POS + Account plus",month:"Jul 2025",stage:"Lost",status:"lost",amount:6000},{name:"Express | JJ Reno Task",month:"Jul 2025",stage:"Lost",status:"lost",amount:5946},{name:"Cloud Accounting + Cloud Payroll | Elevatte Advisory",month:"Jul 2025",stage:"Won",status:"won",amount:2310},{name:"POS + Account | Money Corner Restaurant",month:"Aug 2025",stage:"Lost",status:"lost",amount:6000},{name:"KB Print And Media | ATC Account Plus",month:"Aug 2025",stage:"Lost",status:"lost",amount:3600},{name:"Perniagaan Swee Kee | ATC Pro 3U + 7 POS",month:"Aug 2025",stage:"Demo",status:"open",amount:30902},{name:"Trend Borneo Tours & Travel Sdn Bhd | ATC CA Demo",month:"Oct 2025",stage:"Lost",status:"lost",amount:1870},{name:"Elim Medicare | AutoCount POS Basic",month:"Oct 2025",stage:"Lost",status:"lost",amount:3000},{name:"ATC Basic 2U + eInv 1Co | IK Management Consultant",month:"Nov 2025",stage:"Lost",status:"lost",amount:9050},{name:"Accountplus | E & H Electrical Sdn Bhd",month:"Dec 2025",stage:"Lost",status:"lost",amount:2000}]},
+      {src:"External Referral", total:26, won:8, lost:18, inprog:0, wonAmt:171923, deals:[{name:"Bonding Technology Resources (Chemibond) | ATC Pre 10U + eInv 2 Co",month:"Jan 2025",stage:"Won",status:"won",amount:45228},{name:"Qasih Global Sdn Bhd | ATC Accounting + e-inv",month:"Jan 2025",stage:"Lost",status:"lost",amount:3140},{name:"Loara Sdn Bhd | ATC Accounting basic",month:"Jan 2025",stage:"Lost",status:"lost",amount:5835},{name:"TIN Transport Trading | ATC Acc Plus + eInv 2Co",month:"Feb 2025",stage:"Lost",status:"lost",amount:0},{name:"ATC Plus | Effective Virtual Resources Sdn Bhd",month:"Feb 2025",stage:"Lost",status:"lost",amount:2965},{name:"Tee & Chua | ATC POS Branch add 2 Units",month:"Feb 2025",stage:"Won",status:"won",amount:5500},{name:"Sharwin Foam | ATC V2 Upg 3U + eInv 1Co",month:"Mar 2025",stage:"Won",status:"won",amount:5950},{name:"Ella Fesyen",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"Kovann Mirror | ATC Premium 5U + Customization",month:"Mar 2025",stage:"Won",status:"won",amount:105000},{name:"IEM Resources | ATC Exp Plus",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"Amy | Upgrade to V2",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"1.9-2.2 Express + 1 Com E-inv | Perniagaan Mesin",month:"Apr 2025",stage:"Won",status:"won",amount:1705},{name:"Sato One Stop (SMY) | ATC Accounting Basic",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"Teguh Sarjana Global Resources | ATC Acc Plus",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"DNKS Corporation | Access UBS AB + eInv training",month:"May 2025",stage:"Lost",status:"lost",amount:4157},{name:"Ribuan Positif | AutoCount Acc Plus / Cloud Accounting",month:"May 2025",stage:"Lost",status:"lost",amount:3385},{name:"WELIGHT TRADING | ATC Exp Plus",month:"May 2025",stage:"Lost",status:"lost",amount:3450},{name:"D&A ELECTRICAL AND ELECTRONIC",month:"May 2025",stage:"Won",status:"won",amount:2140},{name:"Tabib Perubatan Sendi - Sendi Tulang",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"LSK Auto Enterprise",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"E-inv Demo | GC Express Logistics Sdn Bhd",month:"Jun 2025",stage:"Lost",status:"lost",amount:5220},{name:"Referred by Ray | United Johnco | ATC Basic 1U + eInv 2 Co",month:"Jun 2025",stage:"Lost",status:"lost",amount:0},{name:"Starch Trade Sdn Bhd",month:"Jun 2025",stage:"Lost",status:"lost",amount:1},{name:"KB Jaya Enterprise | ATC Basic Edition 3 Users",month:"Oct 2025",stage:"Lost",status:"lost",amount:4100},{name:"ATC Basic | Run A Production Sdn Bhd",month:"Dec 2025",stage:"Won",status:"won",amount:4200},{name:"Rendang Engineering & Services",month:"Dec 2025",stage:"Won",status:"won",amount:2200}]},
+      {src:"Web Forms", total:22, won:9, lost:11, inprog:2, wonAmt:75006, deals:[{name:"BML BUILDERS | AutoCount | Progressive billing",month:"Jan 2025",stage:"Lost",status:"lost",amount:0},{name:"Account plus | Luxx newhouse furniture",month:"Jan 2025",stage:"Lost",status:"lost",amount:4805},{name:"Spectrum Packaging Industries | ATC Premium 3U + eInv 4 Co",month:"Feb 2025",stage:"Lost",status:"lost",amount:23160},{name:"Waterjet Art Design | ATC Cloud Account Basic 2Y",month:"Apr 2025",stage:"Won",status:"won",amount:2120},{name:"Kosas Travel & Tours | ATC CA",month:"May 2025",stage:"Won",status:"won",amount:1610},{name:"FMT Media Sdn Bhd",month:"Jul 2025",stage:"Won",status:"won",amount:700},{name:"CKF Duck Food | ATC Premium + Disassembly",month:"Jul 2025",stage:"Lost",status:"lost",amount:14550},{name:"MIM BA GROUP | ATC POS",month:"Aug 2025",stage:"Lost",status:"lost",amount:0},{name:"Mayshowa Sdn Bhd | ATC Premium 3U",month:"Sep 2025",stage:"Lost",status:"lost",amount:0},{name:"Account plus + Payroll | Leader Logistic Worldwide",month:"Sep 2025",stage:"Won",status:"won",amount:4940},{name:"En Iskandar | ATC Accounting",month:"Oct 2025",stage:"Won",status:"won",amount:1700},{name:"TUTAMEN (MALAYSIA) | ATC Basic",month:"Oct 2025",stage:"Negotiation",status:"open",amount:8068},{name:"Agensi Pekerjaan EIFEL Sdn Bhd",month:"Oct 2025",stage:"Lost",status:"lost",amount:3015},{name:"ATC Pre10U + Sql runtime + AppAccess4U + eInv2Co | Clean Living",month:"Oct 2025",stage:"Won",status:"won",amount:46500},{name:"Deplus Design | Autocount Accounting & payroll",month:"Oct 2025",stage:"Won",status:"won",amount:12411},{name:"Binakon Sdn Bhd | ATC Cloud / Integration",month:"Oct 2025",stage:"Lost",status:"lost",amount:20000},{name:"App Access | Kokos Sdn Bhd",month:"Oct 2025",stage:"Lost",status:"lost",amount:900},{name:"Henglass | ATC Premium + Customization",month:"Nov 2025",stage:"Demo",status:"open",amount:0},{name:"H-Point Pharmacy | ATC Basic 14 Users + Advanced Multi UOM",month:"Nov 2025",stage:"Won",status:"won",amount:2675},{name:"Sales Hero B2C 10U | Stephen Handford",month:"Dec 2025",stage:"Lost",status:"lost",amount:26775},{name:"Basic + E-inv | Jernih Sewerage",month:"Dec 2025",stage:"Won",status:"won",amount:2350},{name:"ATC Cloud Accounting Professional 2 Years | Spectrum Integrated Technologies",month:"Dec 2025",stage:"Lost",status:"lost",amount:3030}]},
+      {src:"Lead Magnet", total:16, won:2, lost:12, inprog:2, wonAmt:4660, deals:[{name:"Tech Forge | ATC + eInv",month:"Jan 2025",stage:"Lost",status:"lost",amount:0},{name:"CLC Metal Works | ATC Acc Plus V2.2 + eInv",month:"Jan 2025",stage:"Lost",status:"lost",amount:3140},{name:"Ash29 Enterprise | ATC Account Plus",month:"Jan 2025",stage:"Leads",status:"open",amount:3140},{name:"EVMS Management Consultants | ATC Accounting",month:"Jan 2025",stage:"Lost",status:"lost",amount:0},{name:"Smart Excellence Enterprise | ATC Cloud Accounting Lite",month:"Jan 2025",stage:"Negotiation",status:"open",amount:1440},{name:"Lumi Marketing | ATC On-site Demo",month:"Feb 2025",stage:"Lost",status:"lost",amount:4136},{name:"ABX (Global Express) | Autocount Support",month:"Feb 2025",stage:"Won",status:"won",amount:1910},{name:"KSMT | ATC Acc Plus",month:"Mar 2025",stage:"Lost",status:"lost",amount:3185},{name:"Excel Glow sdn Bhd",month:"Apr 2025",stage:"Lost",status:"lost",amount:3085},{name:"POS Branch | World Frozen Food Sdn Bhd",month:"May 2025",stage:"Lost",status:"lost",amount:3650},{name:"DAYA ANGSANA | ATC Demo",month:"May 2025",stage:"Lost",status:"lost",amount:3235},{name:"ZULDA MASRI FASHION",month:"May 2025",stage:"Lost",status:"lost",amount:7149},{name:"Satu Hati Travel & Tours Sdn Bhd",month:"Jun 2025",stage:"Lost",status:"lost",amount:1430},{name:"KCAF MAREKTING | ATC Exp Plus",month:"Jun 2025",stage:"Lost",status:"lost",amount:0},{name:"HOREM TRDG | ATC POS Basic",month:"Jun 2025",stage:"Lost",status:"lost",amount:4200},{name:"Agathae Business | ATC Acc Plus 1U",month:"Dec 2025",stage:"Won",status:"won",amount:2750}]},
+      {src:"Live Chat", total:14, won:5, lost:9, inprog:0, wonAmt:19618, deals:[{name:"AV Manufacturing | Fingertec Face ID",month:"Mar 2025",stage:"Lost",status:"lost",amount:5100},{name:"Emstech Computer Centre ATC Basic Demo",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"KCA Energy | ATC Basic 3U + E-invoice 1C",month:"Mar 2025",stage:"Won",status:"won",amount:6880},{name:"Account plus + E-inv | TADIKA KEMBANG MINDA",month:"Apr 2025",stage:"Won",status:"won",amount:2788},{name:"Conique Sdn Bhd",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"BM Sport Bikers Accessories | ATC V2 Upgrade",month:"May 2025",stage:"Won",status:"won",amount:2670},{name:"Patentmall | ACA Basic",month:"May 2025",stage:"Lost",status:"lost",amount:1660},{name:"Bric Innovative | ATC Basic Upg + eInv",month:"May 2025",stage:"Won",status:"won",amount:6680},{name:"Aida, Rina & Associates | UBS AB 1U Reactivation",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"Negative Signature | ATC Accounting Basic",month:"May 2025",stage:"Lost",status:"lost",amount:0},{name:"Precision Torque Tools | ATC Cloud Acc Plus",month:"Jun 2025",stage:"Lost",status:"lost",amount:0},{name:"Basic | Willeim Steel Engineering Sdn Bhd",month:"Jun 2025",stage:"Lost",status:"lost",amount:3000},{name:"TRI CAPITAL RESOURCES | ATC Basic Training Stock + SST Module",month:"Jul 2025",stage:"Won",status:"won",amount:600},{name:"Basic (Merdeka Promo) | Sunsteel Kem Sdn Bhd",month:"Aug 2025",stage:"Lost",status:"lost",amount:4325}]},
+      {src:"WhatsApp", total:11, won:2, lost:8, inprog:1, wonAmt:6339, deals:[{name:"ATC | Eagle Cabin",month:"Feb 2025",stage:"Lost",status:"lost",amount:2999},{name:"Nisha Florist | ATC Accounting Basic + 1 user",month:"Feb 2025",stage:"Lost",status:"lost",amount:6470},{name:"Pos fnb | NASI AYAM",month:"Apr 2025",stage:"Lost",status:"lost",amount:5461},{name:"PVB Trading",month:"Apr 2025",stage:"Won",status:"won",amount:2551},{name:"Harizan Rahman | Accountant set",month:"Apr 2025",stage:"Lost",status:"lost",amount:0},{name:"Cheng Jie Precision Engineering",month:"Apr 2025",stage:"Demo",status:"open",amount:0},{name:"Ng Ah Tiam Trading | Acc Plus + ATC POS",month:"May 2025",stage:"Lost",status:"lost",amount:7000},{name:"Cargate Auto Enterprise | Upgrade v2 e-invoice",month:"Jun 2025",stage:"Lost",status:"lost",amount:1830},{name:"Plentong Lienhuat Building Materials | AutoCount e-Invoice",month:"Jun 2025",stage:"Lost",status:"lost",amount:8363},{name:"Sin Ban Huat Meat | ATC Acc Plus",month:"Jul 2025",stage:"Lost",status:"lost",amount:0},{name:"SBS Blast and Painting | ATC Acc Plus + appAccess",month:"Aug 2025",stage:"Won",status:"won",amount:3788}]},
+      {src:"Old Gold", total:9, won:5, lost:4, inprog:0, wonAmt:17840, deals:[{name:"LESLIE YAP & CO | ATC V2 Upg + eInv",month:"Feb 2025",stage:"Won",status:"won",amount:8570},{name:"E-inv + Support | CK Living Enterprise",month:"Feb 2025",stage:"Lost",status:"lost",amount:4000},{name:"Eunike Piano Lessons | AutoCount Cloud Accounting Lite",month:"Feb 2025",stage:"Won",status:"won",amount:720},{name:"Tuff Industries (M) Sdn Bhd",month:"Feb 2025",stage:"Lost",status:"lost",amount:4370},{name:"Ong Yik Chen | ATC Account Plus",month:"Mar 2025",stage:"Won",status:"won",amount:2050},{name:"IBS BUKU | ATC Acc Plus 1U eInv 1 Co",month:"Mar 2025",stage:"Lost",status:"lost",amount:6795},{name:"Hoffset Printing | ATC Basic eInv 1 Co + Training",month:"Apr 2025",stage:"Won",status:"won",amount:4330},{name:"Vision Tech Electrical Engineering Sdn Bhd",month:"May 2025",stage:"Lost",status:"lost",amount:2965},{name:"ATC Cloud Accounting Basic 2 Years | Odi Engineering",month:"Dec 2025",stage:"Won",status:"won",amount:2170}]},
+      {src:"Principal", total:8, won:1, lost:6, inprog:1, wonAmt:1665, deals:[{name:"Pyaroll | Hybrid Publication",month:"Jan 2025",stage:"Lost",status:"lost",amount:0},{name:"Atc Cloud | Ekoinvensi",month:"Jan 2025",stage:"Lost",status:"lost",amount:1805},{name:"Hadra Sdn Bhd | ATC Cloud Payroll",month:"Feb 2025",stage:"Lost",status:"lost",amount:1840},{name:"Accountplius | NBIT Technology",month:"Apr 2025",stage:"Lost",status:"lost",amount:1640},{name:"Ampang Gold Traders | POS",month:"May 2025",stage:"Quotation",status:"open",amount:4715},{name:"Reveillon Group | ATC Pro 5U + eInv 1 Co",month:"Jun 2025",stage:"Lost",status:"lost",amount:33229},{name:"SLC | ATC V2 Upgrade + eInv",month:"Jun 2025",stage:"Won",status:"won",amount:1665},{name:"WK Goh & Co. | Accountant Set",month:"Aug 2025",stage:"Lost",status:"lost",amount:2300}]},
+      {src:"Trade Show", total:7, won:2, lost:5, inprog:0, wonAmt:4960, deals:[{name:"RBM | ATC Basic + einv + DM + Plugin",month:"Mar 2025",stage:"Lost",status:"lost",amount:0},{name:"Fire Bender Import and Export Sdn Bhd | ATC Stock Solution",month:"Oct 2025",stage:"Lost",status:"lost",amount:25300},{name:"Delphina Technik | ATC Basic v2 Upg + eInv 2 Co",month:"Oct 2025",stage:"Won",status:"won",amount:4710},{name:"Comcentric Solutions | Autocount Payroll",month:"Oct 2025",stage:"Lost",status:"lost",amount:1720},{name:"SMF Steelmakers | E-invoice Training",month:"Nov 2025",stage:"Won",status:"won",amount:250},{name:"Camps & Apparels Corp | ATC Cloud Payroll + Time Attendance",month:"Nov 2025",stage:"Lost",status:"lost",amount:0},{name:"Skitech Solutions | ATC Demo",month:"Nov 2025",stage:"Lost",status:"lost",amount:4450}]},
+      {src:"Advertisement", total:4, won:1, lost:1, inprog:2, wonAmt:4749, deals:[{name:"MH NG Trading | ATC Basic + eInv",month:"Apr 2025",stage:"Lost",status:"lost",amount:4530},{name:"Perkayuan Tat Lee | ATC Basic",month:"May 2025",stage:"Negotiation",status:"open",amount:5230},{name:"Guew Mun Kam | Cloud Accounting",month:"May 2025",stage:"Demo",status:"open",amount:0},{name:"Yuan Woh Sauce Factory | ATC Account Plus 1 User",month:"Jul 2025",stage:"Won",status:"won",amount:4749}]},
+      {src:"Employee Referral", total:2, won:1, lost:1, inprog:0, wonAmt:3814, deals:[{name:"Aurum Paradisa | ATC Basic Cloud Accounting 2Y",month:"May 2025",stage:"Lost",status:"lost",amount:1320},{name:"Palm Pos + Cloud Acc | One Every Fresh",month:"Dec 2025",stage:"Won",status:"won",amount:3814}]},
+      {src:"Zoho Bookings", total:1, won:0, lost:1, inprog:0, wonAmt:0, deals:[{name:"BeWell Pharmacy Puchong",month:"Apr 2025",stage:"Lost",status:"lost",amount:6432}]},
+      {src:"Missed Call", total:1, won:0, lost:1, inprog:0, wonAmt:0, deals:[{name:"YSM Seremban Distributor Sdn Bhd",month:"Apr 2025",stage:"Lost",status:"lost",amount:0}]},
+      {src:"Marketing Campaign", total:1, won:1, lost:0, inprog:0, wonAmt:1968, deals:[{name:"1.9-2.2 Account plus | Pang Siang Enterprise",month:"Apr 2025",stage:"Won",status:"won",amount:1968}]}
+    ]
+  },
+  '2026-ytd': {
+    label: "YTD 2026 (Jan–Jun)", subtitle: "71 deals",
+    insight: "<strong>71 AutoCount deals, 16 won (22.5% won rate)</strong>, RM 194,345 won value. <em>New Sales team · AutoCount product only (converted-lead basis, excl. BrioHR).</em> Highest volume: <strong>Facebook</strong> (30 deals). Best converting (≥8 deals): <strong>Web Forms</strong> (25%). Includes <strong>Coolblog / Jit Sing (RM 154,429)</strong> — largest 2026 win, manually added (Lead_Conversion_Time null in CRM). ",
+    rows: [
+      {src:"Facebook", total:30, won:4, lost:21, inprog:5, wonAmt:15586, deals:[{name:"5.0-5.2 Upgrade | Freshlink Bahau Enterprise",month:"Jan 2026",stage:"Won",status:"won",amount:4947},{name:"Basic | Doa Fashion",month:"Jan 2026",stage:"Lost",status:"lost",amount:3600},{name:"Basic | Kedai Emas Sri Qaseh",month:"Jan 2026",stage:"Negotiation",status:"open",amount:4200},{name:"Bayda Boutique | ATC POS basic",month:"Jan 2026",stage:"Lost",status:"lost",amount:4615},{name:"ATC Cloud Accounting Pro + PalmPOS 1U | Rizqin",month:"Jan 2026",stage:"Lost",status:"lost",amount:4468},{name:"ATC Acc + eInv | Hk Training Agent Services",month:"Jan 2026",stage:"Lost",status:"lost",amount:0},{name:"ATC POS | Revolution Run Borneo",month:"Jan 2026",stage:"Lost",status:"lost",amount:0},{name:"ATC Cloud Accounting Basic 4 Companies | Gaharu Creations",month:"Feb 2026",stage:"Lost",status:"lost",amount:5504},{name:"ATC POS Standard FnB + Xilnex POS | FNR Signature",month:"Feb 2026",stage:"Lost",status:"lost",amount:8182},{name:"Bok smart accessories",month:"Feb 2026",stage:"Lost",status:"lost",amount:0},{name:"ATC Accounting / POS | Jessandra Music Studio",month:"Feb 2026",stage:"Demo",status:"open",amount:0},{name:"ATC Accounting | Tadika Sri Anak Pintar",month:"Feb 2026",stage:"Lost",status:"lost",amount:0},{name:"ATC Cloud Accounting Basic 2Y Promo | Lilo Gudang Digital",month:"Feb 2026",stage:"Lost",status:"lost",amount:2170},{name:"ATC POS Standard FnB | FNR Signature",month:"Feb 2026",stage:"Lost",status:"lost",amount:0},{name:"Basic + POS | Ampang Fresh Mart",month:"Feb 2026",stage:"Lost",status:"lost",amount:5000},{name:"Basic | Lim Production",month:"Feb 2026",stage:"Won",status:"won",amount:4525},{name:"ATC POS | Emeilda Interprise",month:"Feb 2026",stage:"Lost",status:"lost",amount:0},{name:"ATC Stock Solution | LB Auto Group",month:"Mar 2026",stage:"Lost",status:"lost",amount:0},{name:"ATC Accounting | Koperasi Guru Guru Tamil Kedah Bhd",month:"Mar 2026",stage:"Lost",status:"lost",amount:0},{name:"ATC Accounting | Heals Thai Reflexology",month:"Mar 2026",stage:"Lost",status:"lost",amount:0},{name:"Pos | Cat Foods & Such",month:"Mar 2026",stage:"Lost",status:"lost",amount:3500},{name:"Palm POS | Fairuzzan Enterprise",month:"Mar 2026",stage:"Lost",status:"lost",amount:788},{name:"Support | HUBEI HUAXIN ENGINEERING (M) SDN BHD",month:"Mar 2026",stage:"This Week",status:"open",amount:2000},{name:"Cloud Accounting | Touchpay solution",month:"Apr 2026",stage:"Negotiation",status:"open",amount:1154},{name:"Basic | Threetech Solutions Sdn Bhd",month:"Apr 2026",stage:"Lost",status:"lost",amount:0},{name:"Support + Cloud Accounting | Ace Fresh Fruits",month:"Apr 2026",stage:"Lost",status:"lost",amount:600},{name:"Sales Hiro | ASD Sunmoon",month:"May 2026",stage:"Quotation",status:"open",amount:0},{name:"ATC POS Retail 1C | Che Usaha Keluarga Baru Enterprise",month:"May 2026",stage:"Lost",status:"lost",amount:0},{name:"Accountplus | Hoa Sheng",month:"May 2026",stage:"Won",status:"won",amount:1914},{name:"EV Holding",month:"May 2026",stage:"Won",status:"won",amount:4200}]},
+      {src:"Website Visitors", total:16, won:2, lost:10, inprog:4, wonAmt:3800, deals:[{name:"Vanee Enterprise | ATC Basic 1U + eInv 1 Co",month:"Jan 2026",stage:"Lost",status:"lost",amount:5380},{name:"ATC Pro Stock | PD Brick Sdn Bhd",month:"Jan 2026",stage:"Lost",status:"lost",amount:4700},{name:"Basic | Sai Ram Courier",month:"Jan 2026",stage:"Lost",status:"lost",amount:3000},{name:"SRY Motor",month:"Jan 2026",stage:"Lost",status:"lost",amount:0},{name:"BEST MINI MARKET",month:"Jan 2026",stage:"Lost",status:"lost",amount:0},{name:"ATC Cloud Payroll 10HC | MHMS CEMERLANG SDN BHD",month:"Feb 2026",stage:"Lost",status:"lost",amount:0},{name:"ATC Basic 3U + SiteGiant + Cloud Server | Butik Bella Raz",month:"Feb 2026",stage:"Lost",status:"lost",amount:10240},{name:"ATC POS Standard + eInv + POS Terminal | People's Mart",month:"Feb 2026",stage:"Lost",status:"lost",amount:10492},{name:"Basic | SilverStream Sdn Bhd",month:"Mar 2026",stage:"Won",status:"won",amount:3550},{name:"ATC Bas/Pro 3U + eInv 1 Co | Dezign Format",month:"Mar 2026",stage:"Lost",status:"lost",amount:10580},{name:"ATC Account | JK Country Forklift Rental",month:"Apr 2026",stage:"Lost",status:"lost",amount:0},{name:"Superb Classic | Adhoc support - retrieving the license",month:"Apr 2026",stage:"Won",status:"won",amount:250},{name:"Basic + Recurrence | Vistaria Apartment",month:"Apr 2026",stage:"Quotation",status:"open",amount:4500},{name:"Account plus | Madrasah Tahfiz Yamin",month:"May 2026",stage:"Negotiation",status:"open",amount:2000},{name:"ATC Pro 14U + Photocopier Plugin | IBMS Technology",month:"May 2026",stage:"Demo",status:"open",amount:0},{name:"Payroll | Suria Integrasi",month:"May 2026",stage:"High Chances",status:"open",amount:8000}]},
+      {src:"Web Forms", total:8, won:2, lost:3, inprog:3, wonAmt:155869, deals:[{name:"ATC Handheld Solution | Baccus Sdn Bhd",month:"Jan 2026",stage:"Lost",status:"lost",amount:0},{name:"ATC Workshop Plugin | Parkson Credit",month:"Feb 2026",stage:"Lost",status:"lost",amount:0},{name:"ATC Pre 26U + eInv 4 Co + Module + Sale Hero B2B | Coolblog / Jit Sing",month:"Mar 2026",stage:"Won",status:"won",amount:154429},{name:"ATC Bas 3U + Bank Recon + UnrealG/L | Vynn Capital Sdn Bhd",month:"Apr 2026",stage:"Demo",status:"open",amount:0},{name:"Cloud Acc | Biosystem Europe",month:"Apr 2026",stage:"Quotation",status:"open",amount:2000},{name:"Support | Persatuan Kebajikan Alfa",month:"May 2026",stage:"Negotiation",status:"open",amount:500},{name:"H&H Enterprise",month:"May 2026",stage:"Won",status:"won",amount:1440},{name:"Accountplus | Wawaa Management",month:"May 2026",stage:"Lost",status:"lost",amount:2200}]},
+      {src:"Google Adwords", total:5, won:2, lost:1, inprog:2, wonAmt:3550, deals:[{name:"Accountplus | Anak Ayah Electrical Construction",month:"Jan 2026",stage:"Won",status:"won",amount:2350},{name:"ATC Acc Plus 1U + eInv 1 Co | Messrs Rajwinjit Asyraf",month:"Mar 2026",stage:"Quotation",status:"open",amount:6785},{name:"ATC Accounting | Vibonz (M) Sdn Bhd",month:"Apr 2026",stage:"Quotation",status:"open",amount:3785},{name:"AICCOM Ms. Yap",month:"May 2026",stage:"Lost",status:"lost",amount:0},{name:"Manojh Enterprise | ATC Acct. Plus + Payroll Premium",month:"May 2026",stage:"Won",status:"won",amount:1200}]},
+      {src:"External Referral", total:4, won:3, lost:1, inprog:0, wonAmt:11250, deals:[{name:"Beltech Solutions | ATC Palm POS + Hardware",month:"Mar 2026",stage:"Lost",status:"lost",amount:2814},{name:"Basic | Global Maritime Terminal",month:"Mar 2026",stage:"Won",status:"won",amount:4300},{name:"Basic | Jowa Tours",month:"Apr 2026",stage:"Won",status:"won",amount:2240},{name:"Mechanize | ATC Basic Edition 1 User",month:"Apr 2026",stage:"Won",status:"won",amount:4710}]},
+      {src:"Old Gold", total:2, won:1, lost:1, inprog:0, wonAmt:350, deals:[{name:"Cloud Server | Teng Boon Kee (Langkawi)",month:"Jan 2026",stage:"Lost",status:"lost",amount:5000},{name:"Adhoc Support | PDS SONS HOLDING SDN BHD",month:"Feb 2026",stage:"Won",status:"won",amount:350}]},
+      {src:"WhatsApp", total:2, won:1, lost:1, inprog:0, wonAmt:2500, deals:[{name:"Payroll 5 hc | Nusa Tek Sdn Bhd",month:"May 2026",stage:"Lost",status:"lost",amount:1000},{name:"Support | Gans Warehouse Langkawi",month:"May 2026",stage:"Won",status:"won",amount:2500}]},
+      {src:"Trade Show", total:1, won:0, lost:0, inprog:1, wonAmt:0, deals:[{name:"ATC Basic 3U + AppAccess 3U + Cloud Server | Creador",month:"Jan 2026",stage:"This Week",status:"open",amount:26250}]},
+      {src:"Disqualified ERP Lead", total:1, won:0, lost:1, inprog:0, wonAmt:0, deals:[{name:"Basic | MVD International Sdn Bhd",month:"Feb 2026",stage:"Lost",status:"lost",amount:4000}]},
+      {src:"Employee Referral", total:1, won:1, lost:0, inprog:0, wonAmt:1440, deals:[{name:"Frost Energy Enterprise | ATC Cloud Accounting Lite Edition",month:"Mar 2026",stage:"Won",status:"won",amount:1440}]},
+      {src:"Seminar - Partner", total:1, won:0, lost:0, inprog:1, wonAmt:0, deals:[{name:"ATC | PG Mall",month:"Jun 2026",stage:"Demo",status:"open",amount:0}]}
+    ]
+  },
+};
+
+/* ── Chart instances (kept for destroy-on-re-render) ── */
+let barChartInst = null, donutChartInst = null;
+const DONUT_COLORS = ["#FF6634","#4DB8BD","#4ade80","#f59e0b","#a78bfa","#818cf8"];
+
+/* ── Render all components for a given period key ── */
+function renderPeriod(key) {
+  const ds = DATASETS[key];
+  const periodLabel = document.getElementById('period-active-label');
+
+  /* No-data state */
+  if (!ds.rows.length) {
+    periodLabel.textContent = ds.label + ' · No data yet';
+    document.getElementById('kpi-grid').innerHTML = '';
+    document.getElementById('tableBody').innerHTML = `<tr><td colspan="7"><div class="no-data-msg"><span>📭</span>No deals recorded for ${ds.label} yet.<br>Add data to <code>DATASETS['${key}'].rows</code> in the script to populate this view.</div></td></tr>`;
+    if (barChartInst)  { barChartInst.destroy();  barChartInst = null; }
+    if (donutChartInst){ donutChartInst.destroy(); donutChartInst = null; }
+    document.getElementById('donutLegend').innerHTML = '';
+    document.getElementById('wonrate-insight-text').innerHTML = 'No insight available — add deal data for this period to generate analysis.';
+    return;
+  }
+
+  const sorted = [...ds.rows].sort((a,b) => (b.won/b.total) - (a.won/a.total));
+  const totalDeals = ds.rows.reduce((s,d) => s+d.total, 0);
+  const totalWon   = ds.rows.reduce((s,d) => s+d.won,   0);
+  const wonRate    = totalDeals ? (totalWon/totalDeals*100).toFixed(1) : 0;
+  const totalInProg = ds.rows.reduce((s,d) => s+d.inprog, 0);
+  const wonAmount  = ds.rows.reduce((s,d) => s + (d.wonAmt != null ? d.wonAmt : (d.deals||[]).filter(x => x.status === 'won').reduce((a,x) => a + (x.amount||0), 0)), 0);
+  const fmtRM = (n) => n >= 1e6 ? 'RM ' + (n/1e6).toFixed(2) + 'M' : 'RM ' + n.toLocaleString('en-MY');
+  const bestSrc    = sorted.find(d => d.won > 0);
+  const topVol     = [...ds.rows].sort((a,b) => b.total-a.total)[0];
+
+  /* Period label + heading */
+  periodLabel.textContent = ds.label + ' · ' + totalDeals + ' deals';
+  document.getElementById('wonrate-single-heading').textContent = `AutoCount ${ds.label} — Won Rate by Lead Source`;
+  document.getElementById('wonrate-single-subheading').textContent = `${ds.subtitle || (totalDeals + ' new business deals')} tracked`;
+
+  /* KPI cards — store current rows for drill-down */
+  window._drillRows = ds.rows;
+  document.getElementById('kpi-grid').innerHTML = `
+    <div class="metric" onclick="openDrill('total')"  title="Click to see breakdown"><div class="metric-label">Total new business deals</div><div class="metric-val">${totalDeals}</div></div>
+    <div class="metric" onclick="openDrill('won')"    title="Click to see won deals"><div class="metric-label">Overall won</div><div class="metric-val" style="color:#4ade80;">${totalWon}</div></div>
+    <div class="metric" onclick="openDrill('won')"    title="Click to see won deals"><div class="metric-label">YTD won amount</div><div class="metric-val" style="color:#4ade80;font-size:18px;padding-top:4px;">${fmtRM(wonAmount)}</div></div>
+    <div class="metric" onclick="openDrill('open')"   title="Click to see open deals"><div class="metric-label">Open / in pipeline</div><div class="metric-val" style="color:#f59e0b;">${totalInProg}</div></div>
+    <div class="metric" onclick="openDrill('rate')"   title="Click to see won rate by source"><div class="metric-label">Overall won rate</div><div class="metric-val" style="color:#4ade80;">${wonRate}%</div></div>
+    <div class="metric" onclick="openDrill('best')"   title="Click to see best source detail"><div class="metric-label">Best source</div><div class="metric-val" style="font-size:15px;padding-top:5px;">${bestSrc ? bestSrc.src : '—'}</div></div>
+    <div class="metric" onclick="openDrill('topvol')" title="Click to see top volume detail"><div class="metric-label">Top volume source</div><div class="metric-val" style="font-size:15px;padding-top:5px;">${topVol ? topVol.src + ' (' + topVol.total + ')' : '—'}</div></div>
+  `;
+
+  /* Table */
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+  sorted.forEach(d => {
+    const rate     = d.total > 0 ? (d.won  / d.total * 100) : 0;
+    const lostRate = d.total > 0 ? (d.lost / d.total * 100) : 0;
+    const barColor = rate >= 30 ? "#4ade80" : rate >= 10 ? "#4DB8BD" : "#4A6E72";
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="font-weight:500;">${d.src}</td>
+      <td style="text-align:center;">${d.total}</td>
+      <td style="text-align:center;" class="${d.won > 0 ? 'won-val' : 'zero-val'}">${d.won}</td>
+      <td style="text-align:center;" class="zero-val">${d.lost}</td>
+      <td style="text-align:center;" class="zero-val">${d.inprog}</td>
+      <td style="text-align:right;font-weight:500;${rate > 0 ? 'color:#4ade80;' : 'color:var(--text-muted);'}">${rate > 0 ? rate.toFixed(0)+'%' : '0%'}</td>
+      <td style="text-align:right;font-weight:500;${lostRate > 0 ? 'color:#FF6634;' : 'color:var(--text-muted);'}">${lostRate > 0 ? lostRate.toFixed(0)+'%' : '0%'}</td>
+      <td><div class="bar-bg"><div class="bar-fill" style="width:${rate}%;background:${barColor};"></div></div></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  /* Bar chart */
+  if (barChartInst) barChartInst.destroy();
+  barChartInst = new Chart(document.getElementById('wonRateChart'), {
+    type: 'bar',
+    data: {
+      labels: sorted.map(d => d.src),
+      datasets: [{ label: 'Won rate %', data: sorted.map(d => +(d.won/d.total*100).toFixed(1)), backgroundColor: sorted.map(d => { const r = d.won/d.total*100; return r>=30?"#4ade80":r>=10?"#4DB8BD":"#4A6E72"; }), borderRadius: 4 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.parsed.y.toFixed(0)+'%' } } },
+      scales: {
+        x: { ticks: { color: '#8a9e8f', font: { size: 10 }, maxRotation: 40, autoSkip: false }, grid: { color: 'rgba(26,74,75,0.4)' } },
+        y: { beginAtZero: true, max: 100, ticks: { color: '#8a9e8f', callback: v => v+'%' }, grid: { color: 'rgba(26,74,75,0.4)' } }
+      }
+    }
+  });
+
+  /* Donut chart */
+  const wonSrcs = sorted.filter(d => d.won > 0);
+  if (donutChartInst) donutChartInst.destroy();
+  donutChartInst = new Chart(document.getElementById('donutChart'), {
+    type: 'doughnut',
+    data: {
+      labels: wonSrcs.map(d => d.src),
+      datasets: [{ data: wonSrcs.map(d => d.won), backgroundColor: DONUT_COLORS, borderWidth: 2, borderColor: 'transparent' }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.label + ': ' + ctx.parsed + ' won' } } },
+      cutout: '62%'
+    }
+  });
+
+  /* Donut legend */
+  const legend = document.getElementById('donutLegend');
+  legend.innerHTML = '';
+  wonSrcs.forEach((d, i) => {
+    const span = document.createElement('span');
+    span.innerHTML = `<span class="swatch" style="background:${DONUT_COLORS[i]}"></span>${d.src} — ${d.won} won`;
+    legend.appendChild(span);
+  });
+
+  /* Insight */
+  document.getElementById('wonrate-insight-text').innerHTML = ds.insight || 'No insight configured for this period.';
+}
+
+/* ══ Calendar state ══ */
+const CAL = {
+  viewYear: 2025, viewMonth: 0,
+  start: new Date(2025, 0, 1),
+  end:   new Date(2025, 11, 31),
+  picking: false,
+};
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DOW = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+function toggleCalendar() {
+  const el = document.getElementById('cal-dropdown');
+  const trigger = document.getElementById('dr-trigger');
+  if (el.style.display === 'none') {
+    CAL.viewYear  = CAL.start ? CAL.start.getFullYear() : 2025;
+    CAL.viewMonth = CAL.start ? CAL.start.getMonth()    : 0;
+    renderCal();
+    el.style.display = 'block';
+    trigger.classList.add('open');
+    /* close on outside click */
+    setTimeout(() => document.addEventListener('click', outsideCalClick), 0);
+  } else {
+    closeCalendar();
+  }
+}
+function closeCalendar() {
+  document.getElementById('cal-dropdown').style.display = 'none';
+  document.getElementById('dr-trigger').classList.remove('open');
+  CAL.picking = false;
+  document.removeEventListener('click', outsideCalClick);
+}
+function outsideCalClick(e) {
+  if (!document.getElementById('dr-bar').contains(e.target)) closeCalendar();
+}
+
+function calNav(dir, e) {
+  e.stopPropagation();
+  CAL.viewMonth += dir;
+  if (CAL.viewMonth > 11) { CAL.viewMonth = 0; CAL.viewYear++; }
+  if (CAL.viewMonth < 0)  { CAL.viewMonth = 11; CAL.viewYear--; }
+  renderCal();
+}
+
+function renderCal() {
+  const body = document.getElementById('cal-body');
+  body.innerHTML = '';
+  for (let offset = 0; offset < 2; offset++) {
+    let m = CAL.viewMonth + offset, y = CAL.viewYear;
+    if (m > 11) { m -= 12; y++; }
+    body.appendChild(buildMonth(y, m));
+  }
+  updateCalHeader();
+}
+
+function buildMonth(year, month) {
+  const wrap = document.createElement('div');
+  wrap.className = 'cal-month';
+  const firstDow  = new Date(year, month, 1).getDay();
+  const daysInMon = new Date(year, month + 1, 0).getDate();
+  const todayStr  = fmtISO(new Date());
+
+  let html = `<div class="cal-month-title">${MONTH_NAMES[month]} ${year}</div>`;
+  html += `<div class="cal-dow">${DOW.map(d=>`<span>${d}</span>`).join('')}</div>`;
+  html += `<div class="cal-days">`;
+  for (let i = 0; i < firstDow; i++) html += `<span class="cal-day empty"></span>`;
+  for (let d = 1; d <= daysInMon; d++) {
+    const date = new Date(year, month, d);
+    const iso  = fmtISO(date);
+    let cls = 'cal-day';
+    if (iso === todayStr) cls += ' today';
+    const s = CAL.start, e = CAL.end;
+    if (s && fmtISO(s) === iso) cls += ' range-start';
+    if (e && fmtISO(e) === iso) cls += ' range-end';
+    if (s && e && date > s && date < e) cls += ' in-range';
+    html += `<span class="${cls}" data-iso="${iso}" onclick="calDayClick('${iso}',event)" onmouseenter="calHover('${iso}')">${d}</span>`;
+  }
+  html += `</div>`;
+  wrap.innerHTML = html;
+  return wrap;
+}
+
+function fmtISO(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function parseISO(s) {
+  const [y,m,d] = s.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+function fmtDisplay(d) {
+  return d.getDate() + ' ' + MONTH_NAMES[d.getMonth()].slice(0,3) + ' ' + d.getFullYear();
+}
+
+function calDayClick(iso, e) {
+  e.stopPropagation();
+  const date = parseISO(iso);
+  if (!CAL.picking) {
+    CAL.start   = date;
+    CAL.end     = null;
+    CAL.picking = true;
+  } else {
+    if (date < CAL.start) { CAL.end = CAL.start; CAL.start = date; }
+    else                   { CAL.end = date; }
+    CAL.picking = false;
+  }
+  document.getElementById('cal-apply-btn').disabled = !(CAL.start && CAL.end);
+  renderCal();
+}
+
+function calHover(iso) {
+  if (!CAL.picking || !CAL.start) return;
+  const hoverDate = parseISO(iso);
+  const startTs   = CAL.start.getTime();
+  const hoverTs   = hoverDate.getTime();
+  const lo = Math.min(startTs, hoverTs);
+  const hi = Math.max(startTs, hoverTs);
+
+  document.querySelectorAll('#cal-body .cal-day[data-iso]').forEach(el => {
+    const t = parseISO(el.dataset.iso).getTime();
+    el.classList.remove('range-start','range-end','in-range');
+    if (t === startTs) el.classList.add(hoverTs >= startTs ? 'range-start' : 'range-end');
+    if (t === hoverTs) el.classList.add(hoverTs >= startTs ? 'range-end'   : 'range-start');
+    if (t > lo && t < hi) el.classList.add('in-range');
+  });
+
+  const s = hoverTs >= startTs ? CAL.start : hoverDate;
+  const e = hoverTs >= startTs ? hoverDate : CAL.start;
+  document.getElementById('cal-range-display').textContent = fmtDisplay(s) + ' — ' + fmtDisplay(e);
+}
+
+function updateCalHeader() {
+  const disp = document.getElementById('cal-range-display');
+  const hint = document.getElementById('cal-hint');
+  if (!CAL.start) {
+    disp.textContent = 'Select start date'; hint.textContent = 'Click a day to set start date';
+  } else if (CAL.picking) {
+    disp.textContent = fmtDisplay(CAL.start) + ' — ?'; hint.textContent = 'Now click end date';
+  } else if (CAL.end) {
+    disp.textContent = fmtDisplay(CAL.start) + ' — ' + fmtDisplay(CAL.end); hint.textContent = 'Press Apply or pick again';
+  }
+}
+
+function calClear(e) {
+  e.stopPropagation();
+  CAL.start = null; CAL.end = null; CAL.picking = false;
+  document.getElementById('cal-apply-btn').disabled = true;
+  renderCal();
+}
+
+function calApply(e) {
+  e.stopPropagation();
+  if (!CAL.start || !CAL.end) return;
+  closeCalendar();
+  document.getElementById('dr-start-label').textContent = fmtDisplay(CAL.start);
+  document.getElementById('dr-end-label').textContent   = fmtDisplay(CAL.end);
+  /* Derive the reference year from the selected range start */
+  activeCompareYear = CAL.start.getFullYear();
+  /* Refresh whichever view is currently visible */
+  const qVisible = document.getElementById('wonrate-qcompare').style.display !== 'none';
+  const hVisible = document.getElementById('wonrate-hcompare').style.display !== 'none';
+  if (qVisible) renderQCompare();
+  else if (hVisible) renderHCompare();
+  else renderPeriod(matchDataset(CAL.start, CAL.end));
+}
+
+function matchDataset(s, e) {
+  const y1 = s.getFullYear(), y2 = e.getFullYear();
+  const m1 = s.getMonth(),    m2 = e.getMonth();
+  if (y1 >= 2026) return '2026-ytd';
+  if (y1 === 2025 && y2 === 2025) {
+    if (m2 <= 5) return '2025-h1';
+    if (m1 >= 6) return '2025-h2';
+    return '2025-full';
+  }
+  return '2025-full';
+}
+
+/* ══ Comparison constants ══ */
+const ALL_SOURCES = ["Website Visitors","Facebook","Webinar","Google Adwords","External Referral","Web Forms","Lead Magnet","Live Chat","WhatsApp","Old Gold","Trade Show","Principal","Advertisement","Employee Referral","Marketing Campaign","Missed Call","Zoho Bookings","Disqualified ERP Lead"];
+const Q_KEYS   = ['2025-q1','2025-q2','2025-q3','2025-q4'];
+const Q_LABELS = ['Q1 2025 (Jan–Mar)','Q2 2025 (Apr–Jun)','Q3 2025 (Jul–Sep)','Q4 2025 (Oct–Dec)'];
+const Q_SHORT  = ['Q1','Q2','Q3','Q4'];
+const Q_COLORS = ['#4DB8BD','#FF6634','#4ade80','#f59e0b'];
+const H_KEYS   = ['2025-h1','2025-h2'];
+const H_LABELS = ['H1 2025 (Jan–Jun)','H2 2025 (Jul–Dec)'];
+const H_COLORS = ['#4DB8BD','#FF6634'];
+
+let qChartInst = null, hChartInst = null;
+let activeCompareYear = 2025; /* tracks the year the comparison views use */
+
+function getPeriodRate(key) {
+  const rows = DATASETS[key].rows;
+  const total = rows.reduce((s,d)=>s+d.total,0);
+  const won   = rows.reduce((s,d)=>s+d.won,  0);
+  return total > 0 ? +(won/total*100).toFixed(1) : null;
+}
+function getSrcRate(rows, src) {
+  const row = rows.find(d=>d.src===src);
+  return (row && row.total > 0) ? +(row.won/row.total*100).toFixed(1) : null;
+}
+function getSrcLostRate(rows, src) {
+  const row = rows.find(d=>d.src===src);
+  return (row && row.total > 0) ? +(row.lost/row.total*100).toFixed(1) : null;
+}
+function fmtRate(r) {
+  return r !== null ? r+'%' : '—';
+}
+function rateStyle(r) {
+  return r !== null && r > 0 ? 'color:#4ade80;font-weight:600;' : 'color:var(--text-dim);';
+}
+function lostRateStyle(r) {
+  return r !== null && r > 0 ? 'color:#FF6634;font-weight:600;' : 'color:var(--text-dim);';
+}
+
+/* ── Mode switcher ── */
+function setMode(mode, btn) {
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.getElementById('wonrate-single').style.display    = mode==='single'    ? '' : 'none';
+  document.getElementById('wonrate-qcompare').style.display  = mode==='q-compare' ? 'block' : 'none';
+  document.getElementById('wonrate-hcompare').style.display  = mode==='h-compare' ? 'block' : 'none';
+  document.getElementById('period-active-label').style.display = mode==='single' ? '' : 'none';
+  if (mode==='q-compare') renderQCompare();
+  if (mode==='h-compare') renderHCompare();
+}
+
+/* ── Quarter comparison ── */
+function renderQCompare() {
+  const yr = activeCompareYear;
+  const qKeys   = Q_KEYS.map((_,i)  => `${yr}-q${i+1}`);
+  const qLabels = ['Q1','Q2','Q3','Q4'].map(q => `${q} ${yr}`);
+  const qLong   = [`Q1 ${yr} (Jan–Mar)`,`Q2 ${yr} (Apr–Jun)`,`Q3 ${yr} (Jul–Sep)`,`Q4 ${yr} (Oct–Dec)`];
+  /* Update heading */
+  document.querySelector('#wonrate-qcompare .section-heading h2').textContent = `Quarter-by-Quarter Comparison — ${yr}`;
+  /* Ensure dataset keys exist */
+  qKeys.forEach(k => { if (!DATASETS[k]) DATASETS[k] = {label:k, subtitle:null, insight:null, rows:[]}; });
+  /* KPI strip */
+  const rates = qKeys.map(getPeriodRate);
+  const bestRate = Math.max(...rates.filter(r=>r!==null), -1);
+  const kpiRow = document.getElementById('q-kpi-row');
+  kpiRow.innerHTML = '';
+  qKeys.forEach((key,i) => {
+    const r = rates[i]; const empty = !DATASETS[key].rows.length;
+    const rows = DATASETS[key].rows;
+    const deals = rows.reduce((s,d)=>s+d.total,0);
+    const won   = rows.reduce((s,d)=>s+d.won,0);
+    const div = document.createElement('div');
+    div.className = 'compare-kpi' + (empty?' no-data':'') + (r!==null && r===bestRate?' best':'');
+    div.innerHTML = `
+      <div class="ck-period" style="color:${Q_COLORS[i]}">${qLong[i]}</div>
+      <div class="ck-rate">${empty ? '—' : r+'%'}</div>
+      <div class="ck-sub">${empty ? 'No data yet' : deals+' deals · '+won+' won'}</div>`;
+    kpiRow.appendChild(div);
+  });
+
+  /* Grouped bar chart */
+  if (qChartInst) { qChartInst.destroy(); qChartInst = null; }
+  qChartInst = new Chart(document.getElementById('qCompareChart'), {
+    type: 'bar',
+    data: {
+      labels: ALL_SOURCES,
+      datasets: qKeys.map((key,i) => ({
+        label: qLabels[i],
+        data: ALL_SOURCES.map(src => getSrcRate(DATASETS[key].rows, src) ?? 0),
+        backgroundColor: Q_COLORS[i], borderRadius: 3
+      }))
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, labels: { color:'#8a9e8f', font:{size:11}, boxWidth:12 } },
+        tooltip: { callbacks: { label: ctx => ctx.dataset.label+': '+ctx.parsed.y+'%' } }
+      },
+      scales: {
+        x: { ticks:{color:'#8a9e8f',font:{size:10},maxRotation:40,autoSkip:false}, grid:{color:'rgba(26,74,75,0.4)'} },
+        y: { beginAtZero:true, max:100, ticks:{color:'#8a9e8f',callback:v=>v+'%'}, grid:{color:'rgba(26,74,75,0.4)'} }
+      }
+    }
+  });
+
+  /* Table */
+  const tbody = document.getElementById('q-compare-tbody');
+  tbody.innerHTML = '';
+  ALL_SOURCES.forEach(src => {
+    const sRates     = qKeys.map(key => getSrcRate(DATASETS[key].rows, src));
+    const sLostRates = qKeys.map(key => getSrcLostRate(DATASETS[key].rows, src));
+    const bestIdx = sRates.reduce((b,r,i) => (r!==null && (b===-1||r>sRates[b]))?i:b, -1);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="font-weight:500;">${src}</td>
+      ${sRates.map((r,i) => {
+        const l = sLostRates[i];
+        const wStr = r    !== null ? `<span style="color:#4ade80;font-weight:600;">${r}%</span>`    : '<span style="color:var(--text-dim)">—</span>';
+        const lStr = l    !== null && l > 0 ? `<span style="color:#FF6634;font-weight:600;">${l}%</span>` : '<span style="color:var(--text-dim)">—</span>';
+        return `<td style="text-align:center;line-height:1.6;">${wStr}<br><small>${lStr}</small></td>`;
+      }).join('')}
+      <td style="text-align:center;">${bestIdx>=0&&sRates[bestIdx]>0 ? `<span class="best-badge">${qLabels[bestIdx]}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ── H1 vs H2 comparison ── */
+function renderHCompare() {
+  const yr = activeCompareYear;
+  const hKeys   = [`${yr}-h1`, `${yr}-h2`];
+  const hLabels = [`H1 ${yr} (Jan–Jun)`, `H2 ${yr} (Jul–Dec)`];
+  /* Update heading */
+  document.querySelector('#wonrate-hcompare .section-heading h2').textContent = `H1 vs H2 Comparison — ${yr}`;
+  /* Ensure dataset keys exist */
+  hKeys.forEach(k => { if (!DATASETS[k]) DATASETS[k] = {label:k, subtitle:null, insight:null, rows:[]}; });
+  /* KPI strip */
+  const rates = hKeys.map(getPeriodRate);
+  const bestRate = Math.max(...rates.filter(r=>r!==null), -1);
+  const kpiRow = document.getElementById('h-kpi-row');
+  kpiRow.innerHTML = '';
+  hKeys.forEach((key,i) => {
+    const r = rates[i]; const empty = !DATASETS[key].rows.length;
+    const rows = DATASETS[key].rows;
+    const deals = rows.reduce((s,d)=>s+d.total,0);
+    const won   = rows.reduce((s,d)=>s+d.won,0);
+    const div = document.createElement('div');
+    div.className = 'compare-kpi' + (empty?' no-data':'') + (r!==null && r===bestRate?' best':'');
+    div.style.maxWidth = '280px';
+    div.innerHTML = `
+      <div class="ck-period" style="color:${H_COLORS[i]}">${hLabels[i]}</div>
+      <div class="ck-rate">${empty ? '—' : r+'%'}</div>
+      <div class="ck-sub">${empty ? 'No data yet' : deals+' deals · '+won+' won'}</div>`;
+    kpiRow.appendChild(div);
+  });
+
+  /* Grouped bar chart */
+  if (hChartInst) { hChartInst.destroy(); hChartInst = null; }
+  hChartInst = new Chart(document.getElementById('hCompareChart'), {
+    type: 'bar',
+    data: {
+      labels: ALL_SOURCES,
+      datasets: hKeys.map((key,i) => ({
+        label: hLabels[i].split(' (')[0],
+        data: ALL_SOURCES.map(src => getSrcRate(DATASETS[key].rows, src) ?? 0),
+        backgroundColor: H_COLORS[i], borderRadius: 3
+      }))
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, labels: { color:'#8a9e8f', font:{size:11}, boxWidth:12 } },
+        tooltip: { callbacks: { label: ctx => ctx.dataset.label+': '+ctx.parsed.y+'%' } }
+      },
+      scales: {
+        x: { ticks:{color:'#8a9e8f',font:{size:10},maxRotation:40,autoSkip:false}, grid:{color:'rgba(26,74,75,0.4)'} },
+        y: { beginAtZero:true, max:100, ticks:{color:'#8a9e8f',callback:v=>v+'%'}, grid:{color:'rgba(26,74,75,0.4)'} }
+      }
+    }
+  });
+
+  /* Table with delta */
+  const tbody = document.getElementById('h-compare-tbody');
+  tbody.innerHTML = '';
+  ALL_SOURCES.forEach(src => {
+    const r1 = getSrcRate(DATASETS[hKeys[0]].rows, src);
+    const r2 = getSrcRate(DATASETS[hKeys[1]].rows, src);
+    const l1 = getSrcLostRate(DATASETS[hKeys[0]].rows, src);
+    const l2 = getSrcLostRate(DATASETS[hKeys[1]].rows, src);
+    const delta = (r1!==null && r2!==null) ? +(r2-r1).toFixed(1) : null;
+    const dCls = delta===null ? '' : delta>0 ? 'delta-up' : delta<0 ? 'delta-down' : 'delta-flat';
+    const dStr = delta===null ? '—' : (delta>0?'+':'')+delta+'%';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="font-weight:500;">${src}</td>
+      <td style="text-align:center;${rateStyle(r1)}">${fmtRate(r1)}</td>
+      <td style="text-align:center;${lostRateStyle(l1)}">${fmtRate(l1)}</td>
+      <td style="text-align:center;${rateStyle(r2)}">${fmtRate(r2)}</td>
+      <td style="text-align:center;${lostRateStyle(l2)}">${fmtRate(l2)}</td>
+      <td style="text-align:right;" class="${dCls}">${dStr}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ── Clear all filters — reset to default state ── */
+function clearAllFilters() {
+  CAL.start = new Date(2025, 0, 1);
+  const yr = getLatestDataYear();
+  const key = DATASETS[`${yr}-full`]?.rows?.length ? `${yr}-full` : `${yr}-ytd`;
+  CAL.start = new Date(yr, 0, 1);
+  CAL.end   = new Date(yr, 11, 31);
+  CAL.picking = false;
+  CAL.viewYear = yr;
+  activeCompareYear = yr;
+  document.getElementById('dr-start-label').textContent = `1 Jan ${yr}`;
+  document.getElementById('dr-end-label').textContent   = `31 Dec ${yr}`;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  setMode('single', null);
+  renderPeriod(key);
+}
+
+/* ── Find latest year that has actual data ── */
+function getLatestDataYear() {
+  const now = new Date().getFullYear();
+  for (let yr = now; yr >= 2020; yr--) {
+    if (DATASETS[`${yr}-full`]?.rows?.length) return yr;
+    if (DATASETS[`${yr}-ytd`]?.rows?.length)  return yr;
+  }
+  return 2025;
+}
+
+/* ── Initial render — always loads the latest year with data ── */
+(function init() {
+  const yr = getLatestDataYear();
+  const key = DATASETS[`${yr}-full`]?.rows?.length ? `${yr}-full` : `${yr}-ytd`;
+  CAL.viewYear = yr;
+  CAL.viewMonth = 0;
+  CAL.start = new Date(yr, 0, 1);
+  CAL.end   = new Date(yr, 11, 31);
+  activeCompareYear = yr;
+  document.getElementById('dr-start-label').textContent = `1 Jan ${yr}`;
+  document.getElementById('dr-end-label').textContent   = `31 Dec ${yr}`;
+  renderPeriod(key);
+})();
+
+/* ── Drill-down modal ── */
+function openDrill(type) {
+  const rows = window._drillRows || [];
+  const sorted = [...rows].sort((a,b) => b.total - a.total);
+  let title = '', html = '';
+
+  /* Flatten all deals from all rows, attaching src */
+  const allDeals = rows.flatMap(r => (r.deals||[]).map(d => ({...d, src: r.src})));
+
+  const STATUS_STYLE = {
+    won:  'background:#14532d;color:#4ade80;',
+    lost: 'background:#3b0e0e;color:#FF6634;',
+    open: 'background:#3b2a00;color:#f59e0b;',
+  };
+  const STATUS_LABEL = { won: 'Won', lost: 'Lost', open: 'Open' };
+
+  const fmtAmt = v => (v == null || v === 0) ? '<span style="color:var(--text-dim)">—</span>' : 'RM ' + Math.round(v).toLocaleString();
+
+  const dealRows = deals => deals.map(d => `<tr>
+    <td style="font-weight:500">${d.name}</td>
+    <td style="color:var(--text-muted);font-size:12px">${d.src}</td>
+    <td style="font-size:12px;color:var(--text-muted)">${d.month||''}</td>
+    <td style="font-size:12px;color:var(--text-muted)">${d.stage||''}</td>
+    <td style="text-align:right;font-weight:500;${d.amount>0?'color:var(--text);':''}">${fmtAmt(d.amount)}</td>
+    <td><span style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;${STATUS_STYLE[d.status]||''}">${STATUS_LABEL[d.status]||d.status}</span></td>
+  </tr>`).join('');
+
+  const tbl = rows => `<table class="drill-table">
+    <thead><tr><th>Deal</th><th>Source</th><th>Month</th><th>Stage</th><th style="text-align:right">Amount</th><th>Status</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+
+  const hasDealData = rows.some(r => r.deals && r.deals.length > 0);
+
+  /* Fallback: lead-source summary table when no deal names are stored */
+  const srcTbl = (filteredRows, cols) => {
+    const headers = { total:'Total', won:'Won', lost:'Lost', open:'Open', rate:'Won%' };
+    const ths = cols.map(c=>`<th style="text-align:${c==='src'?'left':'center'}">${c==='src'?'Lead Source':headers[c]||c}</th>`).join('');
+    const tds = filteredRows.map(r => {
+      const wr = r.total ? (r.won/r.total*100) : 0;
+      const cell = {
+        src:   `<td style="font-weight:500">${r.src}</td>`,
+        total: `<td style="text-align:center">${r.total}</td>`,
+        won:   `<td style="text-align:center;color:#4ade80;font-weight:${r.won?'600':'400'}">${r.won}</td>`,
+        lost:  `<td style="text-align:center;color:#FF6634">${r.lost}</td>`,
+        open:  `<td style="text-align:center;color:#f59e0b;font-weight:${r.inprog?'600':'400'}">${r.inprog}</td>`,
+        rate:  `<td style="text-align:center;${wr>0?'color:#4ade80;font-weight:600':''}">${wr>0?wr.toFixed(0)+'%':'—'}</td>`,
+      };
+      return `<tr>${cols.map(c=>cell[c]).join('')}</tr>`;
+    }).join('');
+    return `<table class="drill-table"><thead><tr>${ths}</tr></thead><tbody>${tds}</tbody></table>`;
+  };
+
+  if (type === 'total') {
+    const totalCount = rows.reduce((s,r)=>s+r.total,0);
+    title = `All Deals (${totalCount})`;
+    html = hasDealData ? tbl(dealRows(allDeals)) : srcTbl(sorted, ['src','total','won','lost','open','rate']);
+
+  } else if (type === 'won') {
+    const wonCount = rows.reduce((s,r)=>s+r.won,0);
+    title = `Won Deals (${wonCount})`;
+    const won = allDeals.filter(d => d.status === 'won');
+    if (won.length) {
+      html = tbl(dealRows(won));
+    } else {
+      const wonRows = sorted.filter(r => r.won > 0);
+      html = wonRows.length ? srcTbl(wonRows, ['src','won','total','rate'])
+           : '<div class="drill-empty">No won deals in this period yet.</div>';
+    }
+
+  } else if (type === 'open') {
+    const openCount = rows.reduce((s,r)=>s+r.inprog,0);
+    title = `Open / In-Pipeline (${openCount})`;
+    const open = allDeals.filter(d => d.status === 'open');
+    if (open.length > 0) {
+      html = tbl(dealRows(open));
+    } else {
+      const openRows = sorted.filter(r => r.inprog > 0);
+      html = openRows.length ? srcTbl(openRows, ['src','open','total','won','lost'])
+           : '<div class="drill-empty">No open deals in this period.</div>';
+    }
+
+  } else if (type === 'rate') {
+    const totalCount = rows.reduce((s,r)=>s+r.total,0);
+    const wonCount   = rows.reduce((s,r)=>s+r.won,0);
+    const rate = totalCount ? ((wonCount/totalCount)*100).toFixed(0) : 0;
+    title = `Won Rate: ${rate}% — by Lead Source`;
+    const byRate = [...rows].filter(r=>r.total>0).sort((a,b)=>(b.won/b.total)-(a.won/a.total));
+    html = srcTbl(byRate, ['src','rate','won','total']);
+
+  } else if (type === 'best') {
+    const best = [...rows].filter(d=>d.won>0).sort((a,b)=>(b.won/b.total)-(a.won/a.total))[0];
+    title = best ? `Best Source: ${best.src}` : 'Best Source';
+    if (!best) {
+      html = '<div class="drill-empty">No won deals yet — best source will appear once a deal closes.</div>';
+    } else if (hasDealData && best.deals?.length) {
+      html = tbl(dealRows(best.deals.map(d=>({...d,src:best.src}))));
+    } else {
+      html = srcTbl([best], ['src','total','won','lost','open','rate']);
+    }
+
+  } else if (type === 'topvol') {
+    const tv = [...rows].sort((a,b)=>b.total-a.total)[0];
+    title = tv ? `Top Volume: ${tv.src} (${tv.total} deals)` : 'Top Volume Source';
+    if (!tv) {
+      html = '<div class="drill-empty">No data.</div>';
+    } else if (hasDealData && tv.deals?.length) {
+      html = tbl(dealRows(tv.deals.map(d=>({...d,src:tv.src}))));
+    } else {
+      html = srcTbl([tv], ['src','total','won','lost','open','rate']);
+    }
+  }
+
+  document.getElementById('drill-title').textContent = title;
+  document.getElementById('drill-body').innerHTML = html;
+  document.getElementById('drill-overlay').classList.add('open');
+}
+
+function closeDrill() {
+  document.getElementById('drill-overlay').classList.remove('open');
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrill(); });
+
+</script>
+</body>
+</html>
